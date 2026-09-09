@@ -1,0 +1,12 @@
+# --- PlatformIO Global Exclusions ---
+**/.pio/
+**/.vscode/
+
+# --- ROS 2 Global Exclusions ---
+**/server_ros2/build/
+**/server_ros2/install/
+**/server_ros2/log/
+
+# --- System OS Exclusions ---
+.DS_Store
+Thumbs.db
