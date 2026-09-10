@@ -52,6 +52,7 @@ void task_moteurs() {
 	int compteur_log = 0;
 
 	while (true) {
+	/*
 	// Calcul de l'asservissement
 	leftWheel.update();
 
@@ -74,5 +75,6 @@ void task_moteurs() {
 
 	prochain_reveil += PERIODE_MOTEURS;
 	rtos::ThisThread::sleep_until(prochain_reveil);
+	*/
 	}
 }

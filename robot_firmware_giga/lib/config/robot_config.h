@@ -5,6 +5,8 @@
 #include <rtos.h>
 #include <chrono>
 
+#include "LidarTypes.h"
+
 using namespace std::chrono_literals;
 
 // --- CADENCEMENT TEMPOREL ---
@@ -30,6 +32,8 @@ extern PacketTelemeter telemeter_partagee;
 // --- MUTEX DE PROTECTION ---
 extern rtos::Mutex mutex_batterie;
 extern rtos::Mutex mutex_telemeter;
+extern rtos::Mutex    mutex_lidar;
+extern lidar::Data    lidar_data_partagee;
 
 // --- CONSTANTES DU ROBOT (TEST) ---
 const uint16_t TICKS_PER_REV = 2770;

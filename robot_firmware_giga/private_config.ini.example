@@ -1,0 +1,4 @@
+[wifi_credentials]
+build_flags =
+    -DWIFI_SSID=\"VOTRE_SSID\"
+    -DWIFI_PASS=\"VOTRE_MOT_DE_PASSE\"
