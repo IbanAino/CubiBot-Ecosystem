@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <rtos.h>
+#include <WiFi.h>
 #include "robot_config.h"
 #include "task_moteurs.h"
 #include "task_audio.h"
@@ -7,10 +8,10 @@
 #include "task_com_ros2.h"
 
 // --- DÉFINITION DES THREADS ---
-rtos::Thread thread_moteurs(osPriorityHigh,        1024, nullptr, "moteurs");
-rtos::Thread thread_audio(  osPriorityAboveNormal, 2048, nullptr, "audio");
-rtos::Thread thread_percept(osPriorityNormal,      1024, nullptr, "perception");
-rtos::Thread thread_ros2(   osPriorityBelowNormal, 3072, nullptr, "ros2");
+rtos::Thread thread_moteurs(osPriorityHigh,        4096, nullptr, "moteurs");
+rtos::Thread thread_audio(  osPriorityAboveNormal, 4096, nullptr, "audio");
+rtos::Thread thread_percept(osPriorityNormal,      4096, nullptr, "perception");
+rtos::Thread thread_ros2(   osPriorityBelowNormal, 8192, nullptr, "ros2");
 
 void setup() {
   Serial.begin(9600);
@@ -28,10 +29,10 @@ void setup() {
   Serial.println("=========================================");
 
   // Lancement des fonctions de tâches déportées
-  thread_moteurs.start(mbed::callback(task_moteurs));
-  thread_audio.start(mbed::callback(task_audio));
-  thread_percept.start(mbed::callback(task_perception));
-  thread_ros2.start(mbed::callback(task_com_ros2));
+   thread_moteurs.start(mbed::callback(task_moteurs));
+   thread_audio.start(mbed::callback(task_audio));
+   thread_percept.start(mbed::callback(task_perception));
+   thread_ros2.start(mbed::callback(task_com_ros2));
 
   Serial.println("[Système] Initialisation des modules complète.");
 }

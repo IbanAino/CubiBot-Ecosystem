@@ -19,6 +19,7 @@ struct Config {
 };
 
 static constexpr size_t POINT_PER_PACK = 12;
+static constexpr uint16_t FULL_CIRCLE = 36000;
 
 struct Point
 {

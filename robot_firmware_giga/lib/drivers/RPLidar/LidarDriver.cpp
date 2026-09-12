@@ -4,6 +4,7 @@ namespace lidar {
 
 Driver::Driver(HardwareSerial& serial)
     : serial_(serial),
+	  speedController_(2),
       frameAvailable_(false),
       started_(false)
 {
@@ -17,6 +18,9 @@ void Driver::begin()
 
     frameAvailable_ = false;
     started_ = true;
+
+	speedController_.begin();
+	speedController_.setDutyCycle(0.20f);
 }
 
 void Driver::stop()
@@ -39,7 +43,15 @@ void Driver::process()
         const uint8_t byte =
             static_cast<uint8_t>(serial_.read());
 
-        if (parser_.pushByte(byte, frame_)) {
+        if (parser_.pushByte(byte, rxFrame_)) {
+
+            // Une trame complète et valide vient d'être reçue.
+            memcpy(
+                readyFrame_,
+                rxFrame_,
+                ProtocolParser::FRAME_LENGTH
+            );
+
             frameAvailable_ = true;
         }
     }
@@ -53,7 +65,7 @@ bool Driver::GetData(Data& data)
 
     frameAvailable_ = false;
 
-    return converter_.convert(frame_, data);
+    return dataConverter_.convert(readyFrame_, data);
 }
 
 } // namespace lidar

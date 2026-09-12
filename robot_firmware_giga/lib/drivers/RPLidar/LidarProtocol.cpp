@@ -64,7 +64,7 @@ bool ProtocolParser::pushByte(uint8_t byte, uint8_t* frame)
 {
     // Recherche du header
     if (rxIndex_ == 0) {
-
+		
         if (byte != HEADER) {
             return false;
         }

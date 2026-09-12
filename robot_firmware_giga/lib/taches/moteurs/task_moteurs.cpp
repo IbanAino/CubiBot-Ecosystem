@@ -39,16 +39,6 @@ void task_moteurs() {
 
   auto prochain_reveil = rtos::Kernel::Clock::now();
 
-//   while (true) {
-//     // Exécution de la brique de calcul de votre ancien projet
-//     // Cette fonction lit l'encodeur, calcule le PID, vérifie le Stall et applique le PWM
-//     leftWheel.update();
-
-//     // Cadencement déterministe strict à 50 Hz (20 ms)
-//     prochain_reveil += PERIODE_MOTEURS;
-//     rtos::ThisThread::sleep_until(prochain_reveil);
-//   }
-
 	int compteur_log = 0;
 
 	while (true) {
@@ -72,9 +62,10 @@ void task_moteurs() {
 		Serial.print(" | PWM envoyé: ");
 		Serial.println(pwm_envoi);
 	}
-
-	prochain_reveil += PERIODE_MOTEURS;
-	rtos::ThisThread::sleep_until(prochain_reveil);
 	*/
+	prochain_reveil += PERIODE_MOTEURS;
+	
+	rtos::ThisThread::sleep_until(prochain_reveil);
+	
 	}
 }

@@ -6,7 +6,7 @@
 // Configuration réseau
 const char* ssid       = WIFI_SSID;
 const char* password   = WIFI_PASS;
-const char* server_ip  = "192.168.1.14";
+const char* server_ip  = "192.168.1.21";
 
 // Ports UDP séparés par type de données
 const uint16_t PORT_TELEMETRE = 5005;
@@ -41,7 +41,8 @@ struct __attribute__((packed)) PacketLidar {
 // ---------------------------------------------------------------------------
 static void connectWiFi()
 {
-    WiFi.begin(ssid, password);
+    Serial.println("[Réseau] Try to connect WiFi"); // Do not delete, force the serial buffer allocation before wifi calling
+	WiFi.begin(ssid, password);
     while (WiFi.status() != WL_CONNECTED) {
         rtos::ThisThread::sleep_for(500ms);
     }
@@ -58,7 +59,7 @@ void task_com_ros2()
     connectWiFi();
 
     udp_telemetre.begin(PORT_LOCAL);
-    // udp_lidar n'a pas besoin de port local d'écoute — émission uniquement
+    udp_lidar.begin(PORT_LIDAR);// udp_lidar n'a pas besoin de port local d'écoute — émission uniquement
 
     while (true) {
         if (WiFi.status() != WL_CONNECTED) {
@@ -83,12 +84,25 @@ void task_com_ros2()
         local_lidar = lidar_data_partagee;
         mutex_lidar.unlock();
 
+
+		// Serial.print("[ROS2] point 0 : ");
+		// Serial.print(local_lidar.points[0].angle);
+		// Serial.print(",");
+		// Serial.println(local_lidar.points[0].distance);
+
+		// Serial.print("[ROS2] point 11 : ");
+		// Serial.print(local_lidar.points[11].angle);
+		// Serial.print(",");
+		// Serial.println(local_lidar.points[11].distance);
+
+
         PacketLidar packet_lidar;
         packet_lidar.timestamp = local_lidar.timestamp;
         packet_lidar.speed     = local_lidar.speed;
 
         for (uint8_t i = 0; i < lidar::POINT_PER_PACK; i++) {
-            packet_lidar.points[i].angle     = local_lidar.points[i].angle;
+            //packet_lidar.points[i].angle     = local_lidar.points[i].angle;
+			packet_lidar.points[i].angle = static_cast<float>(local_lidar.points[i].angle) / 100.0f;
             packet_lidar.points[i].distance  = local_lidar.points[i].distance;
             packet_lidar.points[i].intensity = local_lidar.points[i].intensity;
         }
