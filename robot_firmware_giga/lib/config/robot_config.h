@@ -6,6 +6,7 @@
 #include <chrono>
 
 #include "LidarTypes.h"
+#include "DifferentialOdometry.h"
 
 using namespace std::chrono_literals;
 
@@ -13,6 +14,7 @@ using namespace std::chrono_literals;
 const std::chrono::milliseconds PERIODE_MOTEURS = 20ms;   // 1000 Hz
 const std::chrono::milliseconds PERIODE_PERCEPT = 20ms;  // 50 Hz
 const std::chrono::milliseconds PERIODE_COM     = 50ms;  // 20 Hz (Fréquence d'envoi réseau)
+const std::chrono::milliseconds PERIODE_CONTROL = 20ms;  // 50 Hz
 
 // --- STRUCTURE DU PAQUET ENVOYÉ AU SERVEUR ---
 // Cette structure fait exactement 24 octets en tout. C'est ultra-léger !
@@ -38,6 +40,9 @@ extern lidar::Data    lidar_data_partagee;
 // --- CONSTANTES DU ROBOT (TEST) ---
 const uint16_t TICKS_PER_REV = 2770;
 
+static constexpr float WHEEL_RADIUS_METERS = 0.0425f;
+static constexpr float WHEEL_BASE_METERS   = 0.088f;
+
 // --- BROCHES MATÉRIELLES MOTEUR GAUCHE ---
 const uint8_t PIN_LEFT_MOTOR_EN  = 4; // 3
 const uint8_t PIN_LEFT_MOTOR_IN1 = 32; // 36
@@ -45,5 +50,82 @@ const uint8_t PIN_LEFT_MOTOR_IN2 = 34; // 30
 
 const uint8_t PIN_LEFT_ENCODER_A = 35; // 31
 const uint8_t PIN_LEFT_ENCODER_B = 37; //33
+
+// Mother Board V1 :
+// static const uint8_t R_IN4 = 34;
+// static const uint8_t R2_C1 = 35;
+// static const uint8_t R_EN1 = 3;
+// static const uint8_t R2_C2 = 37;
+// static const uint8_t R_IN1 = 36;
+// static const uint8_t R1_C1 = 31;
+// static const uint8_t R_IN3 = 32;
+// static const uint8_t R1_C2 = 33;
+// static const uint8_t R_EN2 = 4;
+// static const uint8_t R_IN2 = 30;
+
+// static const uint8_t L_IN4 = 29;
+// static const uint8_t L2_C1 = 25;
+// static const uint8_t L_EN1 = 5;
+// static const uint8_t L2_C2 = 27;
+// static const uint8_t L_IN1 = 28;
+// static const uint8_t L1_C1 = 22;
+// static const uint8_t L_IN3 = 26;
+// static const uint8_t L1_C2 = 24;
+// static const uint8_t L_EN2 = 6;
+// static const uint8_t L_IN2 = 23;
+
+// Mother Board V2 :
+static const uint8_t R_IN4 = 38;
+static const uint8_t R2_C1 = 23; // 39 = BUUUUG !!!
+static const uint8_t R_EN1 = 3;
+static const uint8_t R2_C2 = 41;
+static const uint8_t R_IN1 = 40;
+static const uint8_t R1_C1 = 35;
+static const uint8_t R_IN3 = 36;
+static const uint8_t R1_C2 = 37;
+static const uint8_t R_EN2 = 4;
+static const uint8_t R_IN2 = 34;
+
+static const uint8_t L_IN4 = 33;
+static const uint8_t L2_C1 = 29;
+static const uint8_t L_EN1 = 5;
+static const uint8_t L2_C2 = 31;
+static const uint8_t L_IN1 = 32;
+static const uint8_t L1_C1 = 26;
+static const uint8_t L_IN3 = 30;
+static const uint8_t L1_C2 = 28;
+static const uint8_t L_EN2 = 6;
+static const uint8_t L_IN2 = 27;
+
+// ------------------------------------------------------------------
+// Pose partagée (produite par task_control, consommée par task_com_ros2)
+// ------------------------------------------------------------------
+ 
+struct OdomData {
+    float x;             // mètres
+    float y;             // mètres
+    float theta;         // radians, normalisé [-π, π]
+    float linearVel;     // m/s
+    float angularVel;    // rad/s
+};
+ 
+extern rtos::Mutex mutex_odom;
+extern OdomData    odom_partagee;
+ 
+// ------------------------------------------------------------------
+// Consigne de vitesse partagée
+// (produite par task_com_ros2, consommée par task_control)
+// ------------------------------------------------------------------
+ 
+struct CmdVel {
+    float linearVel;   // m/s
+    float angularVel;  // rad/s
+};
+ 
+extern rtos::Mutex mutex_cmd;
+extern CmdVel      cmd_partagee;
+
+extern rtos::Mutex mutex_cmd_vel;
+extern CmdVel cmd_vel_partagee;
 
 #endif

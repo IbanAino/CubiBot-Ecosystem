@@ -11,13 +11,19 @@ const char* server_ip  = "192.168.1.21";
 // Ports UDP séparés par type de données
 const uint16_t PORT_TELEMETRE = 5005;
 const uint16_t PORT_LIDAR     = 5006;
-const uint16_t PORT_LOCAL     = 5007;
+const uint16_t PORT_ODOMETRIE = 5007;
+const uint16_t PORT_COMMANDES = 5010;
+
 
 WiFiUDP udp_telemetre;
 WiFiUDP udp_lidar;
+WiFiUDP udp_odometrie;
+WiFiUDP udp_commandes;
+
 
 PacketTelemeter local_packet;
 lidar::Data     local_lidar;
+OdomData local_odom;
 
 // ---------------------------------------------------------------------------
 // Structure binaire envoyée sur le réseau pour un point lidar
@@ -35,6 +41,24 @@ struct __attribute__((packed)) PacketLidar {
     uint16_t      speed;
     LidarPoint_UDP points[lidar::POINT_PER_PACK];
 };
+
+struct __attribute__((packed)) PacketOdometrie {
+    float x;
+    float y;
+    float theta;
+    float linearVel;
+    float angularVel;
+};
+
+struct __attribute__((packed)) PacketCommande {
+    float linearVel;
+    float angularVel;
+};
+
+// struct __attribute__((packed)) CmdVel {
+//     float linearVel;
+//     float angularVel;
+// };
 
 // ---------------------------------------------------------------------------
 // Reconnexion WiFi
@@ -58,13 +82,61 @@ void task_com_ros2()
 
     connectWiFi();
 
-    udp_telemetre.begin(PORT_LOCAL);
-    udp_lidar.begin(PORT_LIDAR);// udp_lidar n'a pas besoin de port local d'écoute — émission uniquement
+    udp_telemetre.begin(PORT_TELEMETRE);
+    udp_lidar.begin(PORT_LIDAR);
+	udp_odometrie.begin(PORT_ODOMETRIE);
+	udp_commandes.begin(PORT_COMMANDES);
 
     while (true) {
         if (WiFi.status() != WL_CONNECTED) {
             connectWiFi();
         }
+
+		// --- Récpetion commandes ---
+		int packetSize = udp_commandes.parsePacket();
+
+		if (packetSize == sizeof(PacketCommande)) {
+
+			PacketCommande packet_commande;
+
+			udp_commandes.read(
+				(uint8_t*)&packet_commande,
+				sizeof(PacketCommande)
+			);
+
+			mutex_cmd_vel.lock();
+
+			cmd_vel_partagee.linearVel  = packet_commande.linearVel;
+			cmd_vel_partagee.angularVel = packet_commande.angularVel;
+
+			mutex_cmd_vel.unlock();
+
+			Serial.print("[ROS2] Commande : ");
+			Serial.print("linearVel=");
+			Serial.print(packet_commande.linearVel, 3);
+			Serial.print(" m/s | angularVel=");
+			Serial.print(packet_commande.angularVel, 3);
+			Serial.println(" rad/s");
+
+		}
+		else if (packetSize > 0) {
+
+			// Paquet reçu mais de taille incorrecte
+			Serial.print("[ROS2] Paquet commande incorrect : ");
+			Serial.print(packetSize);
+			Serial.print(" octets reçus, ");
+			Serial.print(sizeof(PacketCommande));
+			Serial.println(" attendus");
+
+			// Vider le paquet incorrect
+			while (udp_commandes.available() > 0) {
+				udp_commandes.read();
+			}
+		}
+
+
+
+
 
         // --- Paquet télémétrie ---
         mutex_telemeter.lock();
@@ -75,6 +147,7 @@ void task_com_ros2()
         local_packet.tension_batterie = batterie_tension_partagee;
         mutex_batterie.unlock();
 
+		// --- Paquet telemetre ---
         udp_telemetre.beginPacket(server_ip, PORT_TELEMETRE);
         udp_telemetre.write((uint8_t*)&local_packet, sizeof(PacketTelemeter));
         udp_telemetre.endPacket();
@@ -108,10 +181,49 @@ void task_com_ros2()
         }
 
         udp_lidar.beginPacket(server_ip, PORT_LIDAR);
-        udp_lidar.write((uint8_t*)&packet_lidar, sizeof(PacketLidar));
+        udp_lidar.write(
+			(uint8_t*)&packet_lidar,
+			sizeof(PacketLidar)
+		);
         udp_lidar.endPacket();
 
-        prochain_reveil += PERIODE_COM;
+
+
+		// --- Paquet odométrie ---
+		mutex_odom.lock();
+		local_odom = odom_partagee;
+		mutex_odom.unlock();
+
+		PacketOdometrie packet_odom;
+
+		packet_odom.x          = local_odom.x;
+		packet_odom.y          = local_odom.y;
+		packet_odom.theta      = local_odom.theta;
+		packet_odom.linearVel  = local_odom.linearVel;
+		packet_odom.angularVel = local_odom.angularVel;
+
+		udp_odometrie.beginPacket(server_ip, PORT_ODOMETRIE);
+		udp_odometrie.write(
+			(uint8_t*)&packet_odom,
+			sizeof(PacketOdometrie)
+		);
+		udp_odometrie.endPacket();
+
+		// --- Debug odométrie ---
+		Serial.print("[ROS2] Odom : ");
+		Serial.print("x=");
+		Serial.print(local_odom.x, 3);
+		Serial.print(" m | y=");
+		Serial.print(local_odom.y, 3);
+		Serial.print(" m | theta=");
+		Serial.print(local_odom.theta, 3);
+		Serial.print(" rad | linearVel=");
+		Serial.print(local_odom.linearVel, 3);
+		Serial.print(" m/s | angularVel=");
+		Serial.print(local_odom.angularVel, 3);
+		Serial.println(" rad/s");
+
+		prochain_reveil += PERIODE_COM;
         rtos::ThisThread::sleep_until(prochain_reveil);
     }
 }

@@ -6,5 +6,16 @@ PacketTelemeter telemeter_partagee = {12.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 
 rtos::Mutex mutex_batterie;
 rtos::Mutex mutex_telemeter;
-rtos::Mutex    mutex_lidar;
-lidar::Data    lidar_data_partagee;
+rtos::Mutex mutex_lidar;
+lidar::Data lidar_data_partagee;
+
+
+rtos::Mutex mutex_cmd_vel;
+CmdVel cmd_vel_partagee;
+
+
+rtos::Mutex mutex_cmd;
+CmdVel      cmd_partagee;
+
+rtos::Mutex mutex_odom;
+OdomData    odom_partagee;

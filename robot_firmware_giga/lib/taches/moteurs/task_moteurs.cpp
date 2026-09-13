@@ -8,9 +8,40 @@
 #include "StallWatchdog.h"
 #include "VelocityMotorController.h"
 
+
 // --- 1. Instanciation des composants pour le moteur gauche ---
-RotaryIncrementalEncoder leftEncoder(PIN_LEFT_ENCODER_A, PIN_LEFT_ENCODER_B, TICKS_PER_REV);
-DCMotor leftMotor(PIN_LEFT_MOTOR_EN, PIN_LEFT_MOTOR_IN1, PIN_LEFT_MOTOR_IN2);
+// RotaryIncrementalEncoder leftEncoder(
+// 	PIN_LEFT_ENCODER_A ,
+// 	PIN_LEFT_ENCODER_B, 
+// 	TICKS_PER_REV
+// );
+// DCMotor leftMotor(
+// 	PIN_LEFT_MOTOR_EN,
+// 	PIN_LEFT_MOTOR_IN1,
+// 	PIN_LEFT_MOTOR_IN2
+// );
+
+RotaryIncrementalEncoder leftEncoder(
+	L1_C1 ,
+	L1_C2, 
+	TICKS_PER_REV
+);
+DCMotor leftMotor(
+	L_EN1,
+	L_IN1,
+	L_IN2
+);
+
+// RotaryIncrementalEncoder leftEncoder(
+// 	PIN_LEFT_ENCODER_A ,
+// 	PIN_LEFT_ENCODER_B, 
+// 	TICKS_PER_REV
+// );
+// DCMotor leftMotor(
+// 	L_EN1,
+// 	L_IN1,
+// 	L_IN2
+// );
 
 // Votre PID (Kp, Ki, Kd, OutMax, Ramp)
 PIDController leftPID(200.0f, 100.0f, 0.0f, 255.0f, 0.2f); 
@@ -26,20 +57,23 @@ VelocityMotorController leftWheel(leftEncoder, leftMotor, leftPID, leftStallWatc
 void isrLeftA() { leftEncoder.handleChannelA(); }
 void isrLeftB() { leftEncoder.handleChannelB(); }
 
+
+
 // --- 3. Corps de la Tâche de contrôle ---
 void task_moteurs() {
+
   // Liaison des interruptions matérielles de l'encodeur
   leftEncoder.attachInterrupts(isrLeftA, isrLeftB);
 
   // Configuration initiale du PID
-  leftPID.setOutputLimits(-255.0f, 255.0f);
+  //leftPID.setOutputLimits(-255.0f, 255.0f);
   
   // Consigne de test : 0.5 tour par seconde
-  leftWheel.setTargetVelocity(1.0f); 
+  //leftWheel.setTargetVelocity(1.0f); 
 
   auto prochain_reveil = rtos::Kernel::Clock::now();
 
-	int compteur_log = 0;
+	//int compteur_log = 0;
 
 	while (true) {
 	/*
