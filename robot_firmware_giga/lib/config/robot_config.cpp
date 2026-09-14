@@ -9,6 +9,10 @@ rtos::Mutex mutex_telemeter;
 rtos::Mutex mutex_lidar;
 lidar::Data lidar_data_partagee;
 
+// Lidar : tableau ou liste de frames, (MAX_FRAME_QUEUE_SIZE)
+
+
+
 
 rtos::Mutex mutex_cmd_vel;
 CmdVel cmd_vel_partagee;

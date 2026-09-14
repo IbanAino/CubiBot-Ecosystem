@@ -14,7 +14,7 @@ void task_perception() {
         lidarDriver.process();
 
         lidar::Data data;
-        if (lidarDriver.GetData(data)) {
+        if (lidarDriver.GetLastFrame(data)) {
             // Sécurisation de l'accès aux données lidar partagées
 
 			// for (uint8_t i = 0; i < lidar::POINT_PER_PACK; ++i) {

@@ -37,6 +37,15 @@ extern rtos::Mutex mutex_telemeter;
 extern rtos::Mutex    mutex_lidar;
 extern lidar::Data    lidar_data_partagee;
 
+
+// Lidar : tableau ou liste de frames, (MAX_FRAME_QUEUE_SIZE)
+
+
+
+
+
+
+
 // --- CONSTANTES DU ROBOT (TEST) ---
 const uint16_t TICKS_PER_REV = 2770;
 

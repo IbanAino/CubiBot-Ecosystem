@@ -210,18 +210,18 @@ void task_com_ros2()
 		udp_odometrie.endPacket();
 
 		// --- Debug odométrie ---
-		Serial.print("[ROS2] Odom : ");
-		Serial.print("x=");
-		Serial.print(local_odom.x, 3);
-		Serial.print(" m | y=");
-		Serial.print(local_odom.y, 3);
-		Serial.print(" m | theta=");
-		Serial.print(local_odom.theta, 3);
-		Serial.print(" rad | linearVel=");
-		Serial.print(local_odom.linearVel, 3);
-		Serial.print(" m/s | angularVel=");
-		Serial.print(local_odom.angularVel, 3);
-		Serial.println(" rad/s");
+		// Serial.print("[ROS2] Odom : ");
+		// Serial.print("x=");
+		// Serial.print(local_odom.x, 3);
+		// Serial.print(" m | y=");
+		// Serial.print(local_odom.y, 3);
+		// Serial.print(" m | theta=");
+		// Serial.print(local_odom.theta, 3);
+		// Serial.print(" rad | linearVel=");
+		// Serial.print(local_odom.linearVel, 3);
+		// Serial.print(" m/s | angularVel=");
+		// Serial.print(local_odom.angularVel, 3);
+		// Serial.println(" rad/s");
 
 		prochain_reveil += PERIODE_COM;
         rtos::ThisThread::sleep_until(prochain_reveil);
