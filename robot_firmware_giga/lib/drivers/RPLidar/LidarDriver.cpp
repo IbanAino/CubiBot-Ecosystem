@@ -18,7 +18,7 @@ void Driver::begin()
 
     //frameAvailable_ = false;
 
-	frameQueue_.clear();
+	//frameQueue_.clear();
 
     started_ = true;
 
@@ -53,32 +53,50 @@ void Driver::process()
             static_cast<uint8_t>(serial_.read());
 
         if (parser_.pushByte(byte, rxFrame_)) {
+			if(parser_.calculateCRC8(rxFrame_, 47) == 0){
 
-            // // Une trame complète et valide vient d'être reçue.
-            // memcpy(
-            //     readyFrame_,
-            //     rxFrame_,
-            //     ProtocolParser::FRAME_LENGTH
-            // );
+				// uint16_t timestamp =
+				// 	static_cast<uint16_t>(rxFrame_[44]) |
+				// 	(static_cast<uint16_t>(rxFrame_[45]) << 8
+				// );
 
-            // frameAvailable_ = true;
+				// Serial.print(timestamp);
+				// // Serial.println(rxFrame_[0]);
+				// // Serial.println(rxFrame_[1]);
 
-			// debugCounter++;
+				// Serial.print("   -   ");
 
-            // Une trame complète et valide vient d'être reçue.
-            // On la copie dans un std::array pour l'insérer dans la deque.
-            RawFrame newFrame;
-            memcpy(newFrame.data(), rxFrame_, ProtocolParser::FRAME_LENGTH);
- 
-            // Si la deque est pleine, on supprime la trame la plus ancienne
-            // (back) pour faire de la place à la nouvelle (front).
-            if (frameQueue_.size() >= MAX_FRAME_QUEUE_SIZE) {
-                frameQueue_.pop_back();
-            }
- 
-            // Insertion en front : la trame la plus récente est toujours
-            // accessible via front().
-            frameQueue_.push_front(newFrame);
+				// Serial.println(parser_.calculateCRC8(rxFrame_, 47));
+
+
+
+
+
+				// // Une trame complète et valide vient d'être reçue.
+				// memcpy(
+				//     readyFrame_,
+				//     rxFrame_,
+				//     ProtocolParser::FRAME_LENGTH
+				// );
+
+				// frameAvailable_ = true;
+
+				// debugCounter++;
+
+				// Une trame complète et valide vient d'être reçue.
+				// On la copie dans un std::array pour l'insérer dans la deque.
+				RawFrame newFrame;
+				memcpy(newFrame.data(), rxFrame_, ProtocolParser::FRAME_LENGTH);
+
+	
+				// Si la deque est pleine, on supprime la trame la plus ancienne (au front)
+				if (frameQueue_.size() >= MAX_FRAME_QUEUE_SIZE) {
+				    frameQueue_.pop_front();
+				}
+	
+				// On insère la nouvelle trame à l'arrière (back)
+				frameQueue_.push_back(newFrame);
+			}
         }
     }
 }
@@ -87,28 +105,60 @@ void Driver::process()
 // GetData — retourne la trame la plus récente
 // -----------------------------------------------------------------------
 
-bool Driver::GetLastFrame(Data& data)
+// bool Driver::GetLastFrame(Data& data)
+// {
+//     //if (!frameAvailable_) {
+// 	if (frameQueue_.empty()) {
+//         return false;
+//     }
+
+//     // frameAvailable_ = false;
+// 	// Serial.println(debugCounter);
+// 	// debugCounter = 0;
+//     // return dataConverter_.convert(readyFrame_, data);
+
+//     // Récupère et consomme la trame la plus récente (front).
+//     const RawFrame& frame = frameQueue_.front();
+//     const bool ok = dataConverter_.convert(frame.data(), data);
+//     frameQueue_.pop_front();
+
+// 	//Serial.println(frameCount());
+// 	//Serial.println(data.startAngle);
+
+// 	//frameQueue_.clear();
+ 
+//     return ok;
+// }
+
+/**
+ * @brief Extrait jusqu'à maxCount trames de la deque dans batch.
+ *
+ * @param batch     Tableau destination (alloué par l'appelant).
+ * @param maxCount  Taille maximale du tableau batch.
+ * @return          Nombre de trames effectivement copiées (0 si deque vide).
+ */
+uint8_t Driver::GetFrames(
+    lidar::Data* batch,
+    uint8_t maxCount)
 {
-    //if (!frameAvailable_) {
 	if (frameQueue_.empty()) {
-        return false;
+        return 0;
+    }
+	
+	uint8_t count = 0;
+    while (!frameQueue_.empty() && count < maxCount) {
+        // Conversion directe depuis la deque vers le batch
+        dataConverter_.convert(
+			//frameQueue_.front().data(),
+			frameQueue_.front().data(), // récupère l'élément le plus ANCIEN (à l'arrière de la deque)
+			batch[count]
+		);
+
+		frameQueue_.pop_front();  // supprime l'élément le plus ancien
+        count++;
     }
 
-    // frameAvailable_ = false;
-	// Serial.println(debugCounter);
-	// debugCounter = 0;
-    // return dataConverter_.convert(readyFrame_, data);
-
-    // Récupère et consomme la trame la plus récente (front).
-    const RawFrame& frame = frameQueue_.front();
-    const bool ok = dataConverter_.convert(frame.data(), data);
-    frameQueue_.pop_front();
-
-	//Serial.println(frameCount());
-
-	frameQueue_.clear();
- 
-    return ok;
+    return count;
 }
 
 // -----------------------------------------------------------------------

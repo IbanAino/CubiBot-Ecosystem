@@ -30,15 +30,22 @@ bool DataConverter::convert(const uint8_t* frame, Data& data)
         static_cast<uint16_t>(frame[42]) |
         (static_cast<uint16_t>(frame[43]) << 8);
 
+
 	// Serial.print("Angles RAW: ");
 	// Serial.print(startAngle / 100.0f);
 	// Serial.print(" -> ");
-	// Serial.println(endAngle / 100.0f);
+	// Serial.print(endAngle / 100.0f);
+	// Serial.print("  interval : ");
+	// Serial.print((endAngle - startAngle) / 100.0f);
 
     // Speed
     data.speed =
         static_cast<uint16_t>(frame[2]) |
         (static_cast<uint16_t>(frame[3]) << 8);
+
+	// Angles
+	data.startAngle = startAngle;
+	data.endAngle = endAngle;
 
     // Calculate all points
     for (uint8_t i = 0; i < POINT_PER_PACK; ++i) {
@@ -54,10 +61,16 @@ bool DataConverter::convert(const uint8_t* frame, Data& data)
             calculatePointAngle(startAngle, endAngle, i);
     }
 
+	//Serial.println(data.points[0].angle);
+
     // Timestamp
     data.timestamp =
         static_cast<uint16_t>(frame[44]) |
-        (static_cast<uint16_t>(frame[45]) << 8);
+        (static_cast<uint16_t>(frame[45]) << 8
+	);
+
+	// Serial.print("   Timestamp: ");
+	// Serial.println(data.timestamp);
 
     return true;
 }

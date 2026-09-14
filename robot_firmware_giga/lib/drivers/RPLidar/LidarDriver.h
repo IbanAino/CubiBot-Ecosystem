@@ -16,6 +16,7 @@
 #include <array>
 #include <deque>
 #include <stdint.h>
+#include <rtos.h>
 
 #include "LidarTypes.h"
 #include "LidarProtocol.h"
@@ -35,7 +36,12 @@ public:
     void stop();
     void process();
 
-    bool GetLastFrame(Data& data);
+    //bool GetLastFrame(Data& data);
+
+	uint8_t GetFrames(
+		lidar::Data* batch,
+		uint8_t maxCount)
+	;
 
 	/** @brief Retourne le nombre de trames actuellement dans la deque. */
     size_t frameCount() const;
@@ -70,6 +76,7 @@ private:
      * Éviction   : pop_back()  si la deque est pleine avant insertion.
      * Consommation : pop_front() dans GetData().
      */
+	//mutable rtos::Mutex queueMutex_;
     std::deque<RawFrame> frameQueue_;
 };
 

@@ -20,7 +20,7 @@ public:
     // écrase les précédents données présentes dans *frame
     bool pushByte(uint8_t byte, uint8_t* frame);
 
-private:
+//private:
     uint8_t calculateCRC8(const uint8_t* data, size_t length);
     size_t rxIndex_;
 };

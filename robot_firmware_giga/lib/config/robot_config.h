@@ -8,6 +8,7 @@
 #include "LidarTypes.h"
 #include "DifferentialOdometry.h"
 
+
 using namespace std::chrono_literals;
 
 // --- CADENCEMENT TEMPOREL ---
@@ -40,8 +41,18 @@ extern lidar::Data    lidar_data_partagee;
 
 // Lidar : tableau ou liste de frames, (MAX_FRAME_QUEUE_SIZE)
 
+//static constexpr size_t MAX_FRAMES_PER_BATCH = 8;
+static constexpr float WHEEL_BASE_METERS   = 0.088f;
 
+static constexpr size_t MAX_FRAMES_PER_BATCH = 10; // même taille que lidarTypes.h/MAX_FRAME_QUEUE_SIZE
 
+struct LidarBatch {
+    lidar::Data frames[MAX_FRAMES_PER_BATCH];
+    uint8_t     count;   // nombre de trames valides dans frames[]
+};
+
+extern rtos::Mutex  mutex_lidar_batch;
+extern LidarBatch   lidar_batch_partagee;
 
 
 
@@ -50,7 +61,9 @@ extern lidar::Data    lidar_data_partagee;
 const uint16_t TICKS_PER_REV = 2770;
 
 static constexpr float WHEEL_RADIUS_METERS = 0.0425f;
-static constexpr float WHEEL_BASE_METERS   = 0.088f;
+
+
+static constexpr size_t MAX_FRAME_QUEUE_SIZE = 10;
 
 // --- BROCHES MATÉRIELLES MOTEUR GAUCHE ---
 const uint8_t PIN_LEFT_MOTOR_EN  = 4; // 3

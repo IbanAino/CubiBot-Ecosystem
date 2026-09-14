@@ -23,6 +23,7 @@ WiFiUDP udp_commandes;
 
 PacketTelemeter local_packet;
 lidar::Data     local_lidar;
+LidarBatch batchLocal;
 OdomData local_odom;
 
 // ---------------------------------------------------------------------------
@@ -157,6 +158,10 @@ void task_com_ros2()
         local_lidar = lidar_data_partagee;
         mutex_lidar.unlock();
 
+		mutex_lidar_batch.lock();
+		batchLocal = lidar_batch_partagee;
+		mutex_lidar_batch.unlock();
+
 
 		// Serial.print("[ROS2] point 0 : ");
 		// Serial.print(local_lidar.points[0].angle);
@@ -170,14 +175,15 @@ void task_com_ros2()
 
 
         PacketLidar packet_lidar;
-        packet_lidar.timestamp = local_lidar.timestamp;
-        packet_lidar.speed     = local_lidar.speed;
+
+        packet_lidar.timestamp = batchLocal.frames[0].timestamp;
+        packet_lidar.speed     = batchLocal.frames[0].speed;
 
         for (uint8_t i = 0; i < lidar::POINT_PER_PACK; i++) {
             //packet_lidar.points[i].angle     = local_lidar.points[i].angle;
-			packet_lidar.points[i].angle = static_cast<float>(local_lidar.points[i].angle) / 100.0f;
-            packet_lidar.points[i].distance  = local_lidar.points[i].distance;
-            packet_lidar.points[i].intensity = local_lidar.points[i].intensity;
+			packet_lidar.points[i].angle = static_cast<float>(batchLocal.frames[0].points[i].angle) / 100.0f;
+            packet_lidar.points[i].distance  = batchLocal.frames[0].points[i].distance;
+            packet_lidar.points[i].intensity = batchLocal.frames[0].points[i].intensity;
         }
 
         udp_lidar.beginPacket(server_ip, PORT_LIDAR);
