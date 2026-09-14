@@ -154,14 +154,32 @@ void task_com_ros2()
         udp_telemetre.endPacket();
 
         // --- Paquet lidar ---
-        mutex_lidar.lock();
-        local_lidar = lidar_data_partagee;
-        mutex_lidar.unlock();
+        // mutex_lidar.lock();
+        // local_lidar = lidar_data_partagee;
+        // mutex_lidar.unlock();
 
-		mutex_lidar_batch.lock();
-		batchLocal = lidar_batch_partagee;
-		mutex_lidar_batch.unlock();
+		// mutex_lidar_batch.lock();
+		// batchLocal = lidar_batch_partagee;
+		// mutex_lidar_batch.unlock();
 
+        // PacketLidar packet_lidar;
+
+        // packet_lidar.timestamp = batchLocal.frames[0].timestamp;
+        // packet_lidar.speed     = batchLocal.frames[0].speed;
+
+        // for (uint8_t i = 0; i < lidar::POINT_PER_PACK; i++) {
+        //     //packet_lidar.points[i].angle     = local_lidar.points[i].angle;
+		// 	packet_lidar.points[i].angle = static_cast<float>(batchLocal.frames[0].points[i].angle) / 100.0f;
+        //     packet_lidar.points[i].distance  = batchLocal.frames[0].points[i].distance;
+        //     packet_lidar.points[i].intensity = batchLocal.frames[0].points[i].intensity;
+        // }
+
+        // udp_lidar.beginPacket(server_ip, PORT_LIDAR);
+        // udp_lidar.write(
+		// 	(uint8_t*)&packet_lidar,
+		// 	sizeof(PacketLidar)
+		// );
+        // udp_lidar.endPacket();
 
 		// Serial.print("[ROS2] point 0 : ");
 		// Serial.print(local_lidar.points[0].angle);
@@ -173,27 +191,40 @@ void task_com_ros2()
 		// Serial.print(",");
 		// Serial.println(local_lidar.points[11].distance);
 
+		mutex_lidar_batch.lock();
+		batchLocal = lidar_batch_partagee;
+		mutex_lidar_batch.unlock();
 
-        PacketLidar packet_lidar;
+		for (uint8_t frameIndex = 0; frameIndex < batchLocal.count; frameIndex++) {
 
-        packet_lidar.timestamp = batchLocal.frames[0].timestamp;
-        packet_lidar.speed     = batchLocal.frames[0].speed;
+			PacketLidar packet_lidar;
 
-        for (uint8_t i = 0; i < lidar::POINT_PER_PACK; i++) {
-            //packet_lidar.points[i].angle     = local_lidar.points[i].angle;
-			packet_lidar.points[i].angle = static_cast<float>(batchLocal.frames[0].points[i].angle) / 100.0f;
-            packet_lidar.points[i].distance  = batchLocal.frames[0].points[i].distance;
-            packet_lidar.points[i].intensity = batchLocal.frames[0].points[i].intensity;
-        }
+			packet_lidar.timestamp = batchLocal.frames[frameIndex].timestamp;
+			packet_lidar.speed     = batchLocal.frames[frameIndex].speed;
 
-        udp_lidar.beginPacket(server_ip, PORT_LIDAR);
-        udp_lidar.write(
-			(uint8_t*)&packet_lidar,
-			sizeof(PacketLidar)
-		);
-        udp_lidar.endPacket();
+			for (uint8_t i = 0; i < lidar::POINT_PER_PACK; i++) {
 
+				packet_lidar.points[i].angle =
+					static_cast<float>(
+						batchLocal.frames[frameIndex].points[i].angle
+					) / 100.0f;
 
+				packet_lidar.points[i].distance =
+					batchLocal.frames[frameIndex].points[i].distance;
+
+				packet_lidar.points[i].intensity =
+					batchLocal.frames[frameIndex].points[i].intensity;
+			}
+
+			udp_lidar.beginPacket(server_ip, PORT_LIDAR);
+
+			udp_lidar.write(
+				(uint8_t*)&packet_lidar,
+				sizeof(PacketLidar)
+			);
+
+			udp_lidar.endPacket();
+		}
 
 		// --- Paquet odométrie ---
 		mutex_odom.lock();
