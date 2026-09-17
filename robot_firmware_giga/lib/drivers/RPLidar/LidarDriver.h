@@ -59,7 +59,10 @@ private:
     //bool frameAvailable_;
     bool started_;
 
-	//int debugCounter = 0;
+	int debugCounter1 = 0;
+	int debugCounter2 = 0;
+	
+
    	// Chaque élément de la deque est une trame brute (tableau d'octets).
     // std::array évite d'utiliser un pointeur brut et garantit la copie
     // correcte lors de l'insertion dans la deque.

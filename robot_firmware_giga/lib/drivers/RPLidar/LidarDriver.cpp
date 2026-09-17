@@ -5,7 +5,6 @@ namespace lidar {
 Driver::Driver(HardwareSerial& serial)
     : serial_(serial),
 	  speedController_(2),
-      //frameAvailable_(false),
       started_(false)
 {
 }
@@ -13,15 +12,8 @@ Driver::Driver(HardwareSerial& serial)
 void Driver::begin()
 {
     serial_.begin(230400);
-
     parser_.reset();
-
-    //frameAvailable_ = false;
-
-	//frameQueue_.clear();
-
     started_ = true;
-
 	speedController_.begin();
 	speedController_.setDutyCycle(0.20f);
 }
@@ -29,12 +21,8 @@ void Driver::begin()
 void Driver::stop()
 {
     serial_.end();
-
     started_ = false;
-
-    //frameAvailable_ = false;
 	frameQueue_.clear();
-
     parser_.reset();
 }
 
@@ -55,6 +43,10 @@ void Driver::process()
         if (parser_.pushByte(byte, rxFrame_)) {
 			if(parser_.calculateCRC8(rxFrame_, 47) == 0){
 
+				//debugCounter1++;
+				//Serial.print("Trames entrantes : ");
+				//Serial.println(debugCounter1);
+
 				// uint16_t timestamp =
 				// 	static_cast<uint16_t>(rxFrame_[44]) |
 				// 	(static_cast<uint16_t>(rxFrame_[45]) << 8
@@ -68,31 +60,18 @@ void Driver::process()
 
 				// Serial.println(parser_.calculateCRC8(rxFrame_, 47));
 
-
-
-
-
-				// // Une trame complète et valide vient d'être reçue.
-				// memcpy(
-				//     readyFrame_,
-				//     rxFrame_,
-				//     ProtocolParser::FRAME_LENGTH
-				// );
-
-				// frameAvailable_ = true;
-
-				// debugCounter++;
-
 				// Une trame complète et valide vient d'être reçue.
 				// On la copie dans un std::array pour l'insérer dans la deque.
 				RawFrame newFrame;
 				memcpy(newFrame.data(), rxFrame_, ProtocolParser::FRAME_LENGTH);
 
-	
 				// Si la deque est pleine, on supprime la trame la plus ancienne (au front)
 				if (frameQueue_.size() >= MAX_FRAME_QUEUE_SIZE) {
 				    frameQueue_.pop_front();
+					//debugCounter++;
 				}
+
+				//Serial.println(debugCounter);
 	
 				// On insère la nouvelle trame à l'arrière (back)
 				frameQueue_.push_back(newFrame);
@@ -157,6 +136,10 @@ uint8_t Driver::GetFrames(
 		frameQueue_.pop_front();  // supprime l'élément le plus ancien
         count++;
     }
+
+	// debugCounter2 += count;
+	// Serial.print("Trames sortantes : ");
+	// Serial.println(debugCounter2);
 
     return count;
 }

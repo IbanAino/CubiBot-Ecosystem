@@ -12,6 +12,10 @@ lidar::Data lidar_data_partagee;
 // Lidar : tableau ou liste de frames, (MAX_FRAME_QUEUE_SIZE)
 rtos::Mutex  mutex_lidar_batch;
 LidarBatch   lidar_batch_partagee;
+std::deque<LidarBatch>   lidar_batch_queue;
+
+rtos::Mutex mutex_lidar_frames;
+std::deque<lidar::Data>   lidar_frames_queue_partagee;
 
 
 

@@ -3,13 +3,16 @@
 
 lidar::Driver lidarDriver(Serial4);
 
+int debugCounter = 0;
+
+
 void task_perception() {
-  auto prochain_reveil = rtos::Kernel::Clock::now();
-  Serial.println("[Perception] Initialisation du bus I2C et du LIDAR...");
+	auto prochain_reveil = rtos::Kernel::Clock::now();
+	Serial.println("[Perception] Initialisation du bus I2C et du LIDAR...");
 
-  lidarDriver.begin();
+	lidarDriver.begin();
 
-  while (true) {
+	while (true) {
     // 1. Lecture du buffer du LIDAR 2D
         lidarDriver.process();
 
@@ -71,18 +74,66 @@ void task_perception() {
 		// }
 
 		// 1. Créer une structure LidarBatch locale sur la pile
-		LidarBatch batchLocal;
+		// LidarBatch batchLocal;
 
-		// 2. Remplir directement le tableau interne de la structure locale
-		// batchLocal.frames se dégrade en pointeur (lidar::Data*) automatiquement
-		batchLocal.count = lidarDriver.GetFrames(batchLocal.frames, MAX_FRAMES_PER_BATCH);
+		// // 2. Remplir directement le tableau interne de la structure locale
+		// // batchLocal.frames se dégrade en pointeur (lidar::Data*) automatiquement
+		// batchLocal.count = lidarDriver.GetFrames(batchLocal.frames, MAX_FRAMES_PER_BATCH);
 
-		// 3. Si on a récupéré des trames, on met à jour la variable partagée
-		if (batchLocal.count > 0) {
-			//std::lock_guard<std::mutex> lock(mutex_lidar_batch);
-			mutex_lidar_batch.lock();
-			lidar_batch_partagee = batchLocal;
-			mutex_lidar_batch.unlock();
+		// // 3. Si on a récupéré des trames, on met à jour la variable partagée
+		// if (batchLocal.count > 0) {
+		// 	//std::lock_guard<std::mutex> lock(mutex_lidar_batch);
+
+
+		// 	debugCounter += batchLocal.count;
+		// 	Serial.print("[task_perception] Trames entrant dans le batch : ");
+		// 	Serial.println(debugCounter);
+
+		// 	// mutex_lidar_batch.lock();
+		// 	// lidar_batch_partagee = batchLocal;
+		// 	// mutex_lidar_batch.unlock();
+
+		// 	mutex_lidar_batch.lock();
+		// 	if (lidar_batch_queue.size() >= MAX_LIDAR_QUEUE) {
+		// 		lidar_batch_queue.pop_back();  // évince le plus ancien
+		// 		Serial.print(lidar_batch_queue.size());
+		// 		Serial.println(" [task_perception] Queue partagées pleine - delete data");
+		// 	}
+		// 	lidar_batch_queue.push_front(batchLocal);
+		// 	mutex_lidar_batch.unlock();
+
+		// 1. Pour éviter de saturer la pile de la tâche RTOS, 
+		// vous pouvez rendre ce tableau 'static' (il sera alloué en RAM globale une seule fois)
+		static lidar::Data tramesLocales[MAX_FRAMES_PER_BATCH];
+
+		// 2. Extraction hors du mutex
+		uint8_t nbTrames = lidarDriver.GetFrames(tramesLocales, MAX_FRAMES_PER_BATCH);
+
+		if (nbTrames > 0) {
+			mutex_lidar_frames.lock();
+
+			// ✅ CORRECTION SÉCURITÉ : Tant que la place manque pour insérer TOUTES les nouvelles trames, 
+			// on vide les plus anciennes de la deque. 
+			// (Ex: si taille actuelle = 4, max = 5, et nbTrames = 3, la taille finale visée serait 7. 
+			// On va donc faire 2 fois pop_front() pour que le compte soit bon).
+			while ((lidar_frames_queue_partagee.size() + nbTrames) > MAX_FRAMES_PER_BATCH) {
+				lidar_frames_queue_partagee.pop_front();
+				Serial.println("[task_perception] queue full - delete data");
+			}
+
+			// Insertion sécurisée : la deque ne dépassera JAMAIS MAX_FRAMES_PER_BATCH
+			for (uint8_t i = 0; i < nbTrames; i++) {
+				lidar_frames_queue_partagee.push_back(tramesLocales[i]);
+			}
+
+			mutex_lidar_frames.unlock();
+		}
+
+
+
+
+
+
 			// ICI LE SIGNE = FONCTIONNE PARFAITEMENT !
 			// Le compilateur sait copier une structure complète d'un seul coup
 			// --- LOGS ARDUINO ---
@@ -113,7 +164,7 @@ void task_perception() {
 			// 	Serial.print(batchLocal.frames[i].endAngle);
 			// 	Serial.println(F("°"));
 			// }
-		}
+		//}
 		
 
 

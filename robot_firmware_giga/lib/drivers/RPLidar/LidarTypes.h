@@ -34,11 +34,11 @@ struct Point
 
 struct Data
 {
-    uint16_t speed;
-    uint16_t startAngle;
-    Point points[POINT_PER_PACK];
-    uint16_t endAngle;
     uint16_t timestamp;
+	uint16_t speed;
+    uint16_t startAngle;
+	uint16_t endAngle;
+    Point points[POINT_PER_PACK];
 };
 
 } // namespace lidar

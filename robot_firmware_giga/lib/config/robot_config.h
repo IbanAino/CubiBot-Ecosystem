@@ -4,6 +4,7 @@
 #include <Arduino.h>
 #include <rtos.h>
 #include <chrono>
+#include <deque>
 
 #include "LidarTypes.h"
 #include "DifferentialOdometry.h"
@@ -44,15 +45,52 @@ extern lidar::Data    lidar_data_partagee;
 //static constexpr size_t MAX_FRAMES_PER_BATCH = 8;
 static constexpr float WHEEL_BASE_METERS   = 0.088f;
 
-static constexpr size_t MAX_FRAMES_PER_BATCH = 10; // même taille que lidarTypes.h/MAX_FRAME_QUEUE_SIZE
+static constexpr size_t MAX_FRAMES_PER_BATCH = 20; // même taille que lidarTypes.h/MAX_FRAME_QUEUE_SIZE
+
+
+
 
 struct LidarBatch {
-    lidar::Data frames[MAX_FRAMES_PER_BATCH];
     uint8_t     count;   // nombre de trames valides dans frames[]
+    lidar::Data frames[MAX_FRAMES_PER_BATCH];
 };
+
+// struct __attribute__((packed)) LidarBatch {
+//     uint8_t count;
+//     lidar::Data frames[MAX_FRAMES_PER_BATCH];
+// };
+
+// Assurez-vous que la structure interne est aussi compactée si nécessaire
+// struct __attribute__((packed)) PacketLidar {
+//     uint16_t timestamp;
+//     uint16_t speed;
+//     // ... vos 12 points de 5 octets ici ...
+// }; 
+
+// Votre structure principale compactée
+// struct __attribute__((packed)) LidarBatch {
+//     uint8_t count;
+//     lidar::Data frames[MAX_FRAMES_PER_BATCH];
+// }; 
+
+
+
+
+
+
+
 
 extern rtos::Mutex  mutex_lidar_batch;
 extern LidarBatch   lidar_batch_partagee;
+
+extern rtos::Mutex              mutex_lidar_batch;
+extern std::deque<LidarBatch>   lidar_batch_queue;
+static constexpr size_t         MAX_LIDAR_QUEUE = 20;
+
+
+extern rtos::Mutex              mutex_lidar_frames;
+extern std::deque<lidar::Data>  lidar_frames_queue_partagee;
+static constexpr size_t         MAX_LIDAR_FRAMES_QUEUE = 20;
 
 
 
@@ -149,5 +187,6 @@ extern CmdVel      cmd_partagee;
 
 extern rtos::Mutex mutex_cmd_vel;
 extern CmdVel cmd_vel_partagee;
+
 
 #endif
