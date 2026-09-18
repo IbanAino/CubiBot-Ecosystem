@@ -384,14 +384,24 @@ void task_com_ros2()
 			// udp_lidar.endPacket();
 
 			for (uint8_t i = 0; i < nbTrames; i++) {
+				Serial.print(tramesLocales[i].timestamp);
+				Serial.print(" - ");
+				Serial.print(tramesLocales[i].speed);
+				Serial.print(" - ");
+				Serial.print(tramesLocales[i].startAngle);
+				Serial.print(" - ");
+				Serial.print(tramesLocales[i].endAngle);
+				Serial.print(" --> ");
+				for (uint8_t y = 0; y < nbTrames; y++) {
+					Serial.print(tramesLocales[i].points[y].distance);
+					Serial.print("|");
+				}
+				Serial.println("");
 
-				Serial.println(tramesLocales[i].startAngle);
+
 
 				udp_lidar.beginPacket(server_ip, PORT_LIDAR);
-				
-				// On envoie directement la trame courante (64 octets)
-				udp_lidar.write((uint8_t*)&tramesLocales[i], sizeof(PacketLidar));
-				
+				udp_lidar.write((uint8_t*)&tramesLocales[i], 44); // 44 = nombre d'octets envoyés
 				udp_lidar.endPacket();
 			}
 		}

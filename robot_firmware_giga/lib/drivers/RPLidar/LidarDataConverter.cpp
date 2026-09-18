@@ -57,8 +57,8 @@ bool DataConverter::convert(const uint8_t* frame, Data& data)
 
         data.points[i].intensity = frame[index + 2];
 
-        data.points[i].angle =
-            calculatePointAngle(startAngle, endAngle, i);
+        // data.points[i].angle =
+        //     calculatePointAngle(startAngle, endAngle, i);
     }
 
 	//Serial.println(data.points[0].angle);
@@ -75,30 +75,30 @@ bool DataConverter::convert(const uint8_t* frame, Data& data)
     return true;
 }
 
-uint16_t DataConverter::calculatePointAngle(
-    uint16_t startAngle,
-    uint16_t endAngle,
-    uint8_t index)
-{
-    int32_t angleDifference =
-        static_cast<int32_t>(endAngle) -
-        static_cast<int32_t>(startAngle);
+// uint16_t DataConverter::calculatePointAngle(
+//     uint16_t startAngle,
+//     uint16_t endAngle,
+//     uint8_t index)
+// {
+//     int32_t angleDifference =
+//         static_cast<int32_t>(endAngle) -
+//         static_cast<int32_t>(startAngle);
 
-    // Choisir le chemin angulaire le plus court.
-    if (angleDifference > static_cast<int32_t>(FULL_CIRCLE / 2)) {
-        angleDifference -= FULL_CIRCLE;
-    }
-    else if (angleDifference < -static_cast<int32_t>(FULL_CIRCLE / 2)) {
-        angleDifference += FULL_CIRCLE;
-    }
+//     // Choisir le chemin angulaire le plus court.
+//     if (angleDifference > static_cast<int32_t>(FULL_CIRCLE / 2)) {
+//         angleDifference -= FULL_CIRCLE;
+//     }
+//     else if (angleDifference < -static_cast<int32_t>(FULL_CIRCLE / 2)) {
+//         angleDifference += FULL_CIRCLE;
+//     }
 
-    const int32_t angle =
-        static_cast<int32_t>(startAngle) +
-        (angleDifference * index) / (POINT_PER_PACK - 1);
+//     const int32_t angle =
+//         static_cast<int32_t>(startAngle) +
+//         (angleDifference * index) / (POINT_PER_PACK - 1);
 
-    return static_cast<uint16_t>(
-        (angle + FULL_CIRCLE) % FULL_CIRCLE
-    );
-}
+//     return static_cast<uint16_t>(
+//         (angle + FULL_CIRCLE) % FULL_CIRCLE
+//     );
+// }
 
 } // namespace lidar
