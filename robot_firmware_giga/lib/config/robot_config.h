@@ -133,7 +133,8 @@ static const uint8_t LIDAR_EN = 53;
 // Pose partagée (produite par task_control, consommée par task_com_ros2)
 // ------------------------------------------------------------------
  
-struct OdomData {
+struct __attribute__((packed)) OdomData {
+	uint64_t timestamp;
     float x;             // mètres
     float y;             // mètres
     float theta;         // radians, normalisé [-π, π]

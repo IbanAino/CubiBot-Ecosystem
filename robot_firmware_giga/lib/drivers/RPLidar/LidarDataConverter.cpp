@@ -70,10 +70,14 @@ bool DataConverter::convert(const uint8_t* frame, Data& data)
 	// );
 
 	data.timestamp =
-		static_cast<uint32_t>(frame[47])         |
-		(static_cast<uint32_t>(frame[48]) << 8)  |
-		(static_cast<uint32_t>(frame[49]) << 16) |
-		(static_cast<uint32_t>(frame[50]) << 24);
+		static_cast<uint64_t>(frame[47])         |
+		(static_cast<uint64_t>(frame[48]) << 8)  |
+		(static_cast<uint64_t>(frame[49]) << 16) |
+		(static_cast<uint64_t>(frame[50]) << 24) |
+		(static_cast<uint64_t>(frame[51]) << 32) |
+		(static_cast<uint64_t>(frame[52]) << 40) |
+		(static_cast<uint64_t>(frame[53]) << 48) |
+		(static_cast<uint64_t>(frame[54]) << 56);
 
 
 	// Serial.print("   Timestamp: ");

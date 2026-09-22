@@ -1,5 +1,6 @@
 #include "task_com_ros2.h"
 #include "robot_config.h"
+#include "time_system.h"
 #include <WiFi.h>
 #include <WiFiUdp.h>
 #include <Arduino.h>
@@ -53,13 +54,13 @@ struct __attribute__((packed)) PacketLidarBatch {
     PacketLidar  frames[MAX_FRAMES_PER_BATCH]; // trames concaténées
 };
 
-struct __attribute__((packed)) PacketOdometrie {
-    float x;
-    float y;
-    float theta;
-    float linearVel;
-    float angularVel;
-};
+// struct __attribute__((packed)) PacketOdometrie {
+//     float x;
+//     float y;
+//     float theta;
+//     float linearVel;
+//     float angularVel;
+// };
 
 struct __attribute__((packed)) PacketCommande {
     float linearVel;
@@ -178,8 +179,9 @@ void task_com_ros2()
 		local_odom = odom_partagee;
 		mutex_odom.unlock();
 
-		PacketOdometrie packet_odom;
+		OdomData packet_odom;
 
+		packet_odom.timestamp  = get_system_time_ms();
 		packet_odom.x          = local_odom.x;
 		packet_odom.y          = local_odom.y;
 		packet_odom.theta      = local_odom.theta;
@@ -189,7 +191,7 @@ void task_com_ros2()
 		udp_odometrie.beginPacket(server_ip, PORT_ODOMETRIE);
 		udp_odometrie.write(
 			(uint8_t*)&packet_odom,
-			sizeof(PacketOdometrie)
+			sizeof(OdomData)
 		);
 		udp_odometrie.endPacket();
 
