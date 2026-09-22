@@ -40,44 +40,15 @@ extern rtos::Mutex    mutex_lidar;
 extern lidar::Data    lidar_data_partagee;
 
 
-// Lidar : tableau ou liste de frames, (MAX_FRAME_QUEUE_SIZE)
-
-//static constexpr size_t MAX_FRAMES_PER_BATCH = 8;
+static constexpr float WHEEL_RADIUS_METERS = 0.0425f; // 4.3 cm diameter
 static constexpr float WHEEL_BASE_METERS   = 0.088f;
 
 static constexpr size_t MAX_FRAMES_PER_BATCH = 20; // même taille que lidarTypes.h/MAX_FRAME_QUEUE_SIZE
-
-
-
 
 struct LidarBatch {
     uint8_t     count;   // nombre de trames valides dans frames[]
     lidar::Data frames[MAX_FRAMES_PER_BATCH];
 };
-
-// struct __attribute__((packed)) LidarBatch {
-//     uint8_t count;
-//     lidar::Data frames[MAX_FRAMES_PER_BATCH];
-// };
-
-// Assurez-vous que la structure interne est aussi compactée si nécessaire
-// struct __attribute__((packed)) PacketLidar {
-//     uint16_t timestamp;
-//     uint16_t speed;
-//     // ... vos 12 points de 5 octets ici ...
-// }; 
-
-// Votre structure principale compactée
-// struct __attribute__((packed)) LidarBatch {
-//     uint8_t count;
-//     lidar::Data frames[MAX_FRAMES_PER_BATCH];
-// }; 
-
-
-
-
-
-
 
 
 extern rtos::Mutex  mutex_lidar_batch;
@@ -98,7 +69,6 @@ static constexpr size_t         MAX_LIDAR_FRAMES_QUEUE = 20;
 // --- CONSTANTES DU ROBOT (TEST) ---
 const uint16_t TICKS_PER_REV = 2770;
 
-static constexpr float WHEEL_RADIUS_METERS = 0.0425f;
 
 
 static constexpr size_t MAX_FRAME_QUEUE_SIZE = 10;
@@ -156,6 +126,8 @@ static const uint8_t L_IN3 = 30;
 static const uint8_t L1_C2 = 28;
 static const uint8_t L_EN2 = 6;
 static const uint8_t L_IN2 = 27;
+
+static const uint8_t LIDAR_EN = 53;
 
 // ------------------------------------------------------------------
 // Pose partagée (produite par task_control, consommée par task_com_ros2)

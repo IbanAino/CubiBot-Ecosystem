@@ -163,294 +163,9 @@ void task_com_ros2()
         local_packet.tension_batterie = batterie_tension_partagee;
         mutex_batterie.unlock();
 
-		// --- Paquet telemetre ---
         udp_telemetre.beginPacket(server_ip, PORT_TELEMETRE);
         udp_telemetre.write((uint8_t*)&local_packet, sizeof(PacketTelemeter));
         udp_telemetre.endPacket();
-
-
-        // --- Paquet lidar ---
-        // mutex_lidar.lock();
-        // local_lidar = lidar_data_partagee;
-        // mutex_lidar.unlock();
-
-		// mutex_lidar_batch.lock();
-		// batchLocal = lidar_batch_partagee;
-		// mutex_lidar_batch.unlock();
-
-        // PacketLidar packet_lidar;
-
-        // packet_lidar.timestamp = batchLocal.frames[0].timestamp;
-        // packet_lidar.speed     = batchLocal.frames[0].speed;
-
-        // for (uint8_t i = 0; i < lidar::POINT_PER_PACK; i++) {
-        //     //packet_lidar.points[i].angle     = local_lidar.points[i].angle;
-		// 	packet_lidar.points[i].angle = static_cast<float>(batchLocal.frames[0].points[i].angle) / 100.0f;
-        //     packet_lidar.points[i].distance  = batchLocal.frames[0].points[i].distance;
-        //     packet_lidar.points[i].intensity = batchLocal.frames[0].points[i].intensity;
-        // }
-
-        // udp_lidar.beginPacket(server_ip, PORT_LIDAR);
-        // udp_lidar.write(
-		// 	(uint8_t*)&packet_lidar,
-		// 	sizeof(PacketLidar)
-		// );
-        // udp_lidar.endPacket();
-
-		// Serial.print("[ROS2] point 0 : ");
-		// Serial.print(local_lidar.points[0].angle);
-		// Serial.print(",");
-		// Serial.println(local_lidar.points[0].distance);
-
-		// Serial.print("[ROS2] point 11 : ");
-		// Serial.print(local_lidar.points[11].angle);
-		// Serial.print(",");
-		// Serial.println(local_lidar.points[11].distance);
-
-
-		/*
-		mutex_lidar_batch.lock();
-		batchLocal = lidar_batch_partagee;
-		mutex_lidar_batch.unlock();
-
-		for (uint8_t frameIndex = 0; frameIndex < batchLocal.count; frameIndex++) {
-
-			PacketLidar packet_lidar;
-
-			packet_lidar.timestamp = batchLocal.frames[frameIndex].timestamp;
-			packet_lidar.speed     = batchLocal.frames[frameIndex].speed;
-
-			for (uint8_t i = 0; i < lidar::POINT_PER_PACK; i++) {
-
-				packet_lidar.points[i].angle =
-					static_cast<float>(
-						batchLocal.frames[frameIndex].points[i].angle
-					) / 100.0f;
-
-				packet_lidar.points[i].distance =
-					batchLocal.frames[frameIndex].points[i].distance;
-
-				packet_lidar.points[i].intensity =
-					batchLocal.frames[frameIndex].points[i].intensity;
-			}
-
-			udp_lidar.beginPacket(server_ip, PORT_LIDAR);
-
-			udp_lidar.write(
-				(uint8_t*)&packet_lidar,
-				sizeof(PacketLidar)
-			);
-
-			udp_lidar.endPacket();
-		}
-		*/
-
-
-
-
-
-
-		
-		// mutex_lidar_batch.lock();
-		// batchLocal = lidar_batch_partagee;
-		// mutex_lidar_batch.unlock();
-		/*
-		mutex_lidar_batch.lock();
-		if (!lidar_batch_queue.empty()) {
-			batchLocal = lidar_batch_queue.back();  // consomme le plus ancien
-			lidar_batch_queue.pop_back();
-		}
-		mutex_lidar_batch.unlock();
-
-
-
-
-		debugCounter2 += batchLocal.count;
-		Serial.print("[task_com_ros2] Trames sortantes du batch : ");
-		Serial.println(debugCounter2);
-
-		if (batchLocal.count == 0) {
-			// Rien à envoyer
-		} else {
-			PacketLidarBatch packetBatch;
-			packetBatch.frameCount = batchLocal.count;
-
-
-			for (uint8_t frameIndex = 0; frameIndex < batchLocal.count; frameIndex++) {
-
-				packetBatch.frames[frameIndex].timestamp =
-					batchLocal.frames[frameIndex].timestamp;
-				packetBatch.frames[frameIndex].speed =
-					batchLocal.frames[frameIndex].speed;
-
-				for (uint8_t i = 0; i < lidar::POINT_PER_PACK; i++) {
-					packetBatch.frames[frameIndex].points[i].angle =
-						static_cast<float>(
-							batchLocal.frames[frameIndex].points[i].angle
-						) / 100.0f;
-					packetBatch.frames[frameIndex].points[i].distance =
-						batchLocal.frames[frameIndex].points[i].distance;
-					packetBatch.frames[frameIndex].points[i].intensity =
-						batchLocal.frames[frameIndex].points[i].intensity;
-				}
-			}
-
-
-
-
-
-
-
-
-
-
-
-			// Un seul envoi UDP pour toutes les trames du batch
-			const size_t payloadSize =
-				sizeof(uint8_t) +                          // frameCount
-				batchLocal.count * sizeof(PacketLidar);    // trames effectives seulement
-
-			udp_lidar.beginPacket(server_ip, PORT_LIDAR);
-			udp_lidar.write((uint8_t*)&packetBatch, payloadSize);
-			udp_lidar.endPacket();
-
-
-
-		}
-		*/
-
-
-
-
-
-		static lidar::Data tramesLocales[MAX_FRAMES_PER_BATCH];
-		mutex_lidar_frames.lock();
-		uint8_t nbTrames = lidar_frames_queue_partagee.size();
-
-		if (nbTrames != 0){
-			for (uint8_t i = 0; i < nbTrames; i++) {
-				tramesLocales[i] = lidar_frames_queue_partagee.front();
-				lidar_frames_queue_partagee.pop_front();
-			}
-
-			lidar_frames_queue_partagee.clear();
-		}
-		
-		mutex_lidar_frames.unlock();
-
-
-		// for (uint8_t i = 0; i < nbTrames; i++) {
-		// 	// Serial.print(tramesLocales[i].startAngle / 100.0);
-		// 	// Serial.print("  ->  ");
-		// 	// Serial.println(tramesLocales[i].endAngle / 100.0);
-		// 	Serial.println((tramesLocales[i].startAngle - lastAngle) / 100.0);
-		// 	lastAngle = tramesLocales[i].endAngle;
-		// }
-
-		if (nbTrames != 0){
-			// LidarBatch batchLocalForUDP;
-			// batchLocalForUDP.count = nbTrames;
-
-			// for (uint8_t i = 0; i < nbTrames; i++) {
-			// 	batchLocalForUDP.frames[i] = tramesLocales[i];
-			// }
-
-			// const size_t payloadSize =
-			// 	sizeof(uint8_t) +                          // frameCount
-			// 	batchLocalForUDP.count * sizeof(PacketLidar);    // trames effectives seulement
-
-			// Serial.println("---");
-			// Serial.println(batchLocalForUDP.count);
-			// for(uint8_t i = 0; i < nbTrames; i++){
-			// 	Serial.println(batchLocalForUDP.frames[i].startAngle);
-			// 	Serial.println(batchLocalForUDP.frames[i].points[0].distance);
-			// }
-
-
-			// 2. Affichage de la taille dans le moniteur série
-			// Serial.print("Taille du paquet UDP envoyé : ");
-			// Serial.print(payloadSize);
-			// Serial.println(" octets");
-
-			// udp_lidar.beginPacket(server_ip, PORT_LIDAR);
-			// udp_lidar.write((uint8_t*)&batchLocalForUDP, payloadSize);
-			// udp_lidar.endPacket();
-
-			// udp_lidar.beginPacket(server_ip, PORT_LIDAR);
-			// // 1. On envoie le premier octet (le count)
-			// udp_lidar.write(&(batchLocalForUDP.count), sizeof(uint8_t));
-			// // 2. On envoie uniquement les trames utiles
-			// udp_lidar.write((uint8_t*)batchLocalForUDP.frames, nbTrames * sizeof(PacketLidar));
-			// udp_lidar.endPacket();
-
-			for (uint8_t i = 0; i < nbTrames; i++) {
-				Serial.print(tramesLocales[i].timestamp);
-				Serial.print(" - ");
-				Serial.print(tramesLocales[i].speed);
-				Serial.print(" - ");
-				Serial.print(tramesLocales[i].startAngle);
-				Serial.print(" - ");
-				Serial.print(tramesLocales[i].endAngle);
-				Serial.print(" --> ");
-				for (uint8_t y = 0; y < nbTrames; y++) {
-					Serial.print(tramesLocales[i].points[y].distance);
-					Serial.print("|");
-				}
-				Serial.println("");
-
-
-
-				udp_lidar.beginPacket(server_ip, PORT_LIDAR);
-				udp_lidar.write((uint8_t*)&tramesLocales[i], 44); // 44 = nombre d'octets envoyés
-				udp_lidar.endPacket();
-			}
-		}
-
-
-			// if (nbTrames > MAX_FRAMES_PER_BATCH) {
-			// 	nbTrames = MAX_FRAMES_PER_BATCH;
-			// }
-
-			// for (uint8_t i = 0; i < nbTrames; i++) {
-			// 	tramesLocales[i] = lidar_frames_queue_partagee.front();
-			// 	lidar_frames_queue_partagee.pop_front();
-			// }
-
-			// lidar_frames_queue_partagee.clear();
-			// mutex_lidar_frames.unlock();
-
-			// LidarBatch batchLocalForUDP;
-			// batchLocalForUDP.count = nbTrames;
-
-			// for (uint8_t i = 0; i < nbTrames; i++) {
-			// 	batchLocalForUDP.frames[i] = tramesLocales[i];
-			// }
-
-			// const size_t payloadSize =
-			// 	sizeof(uint8_t) +                          // frameCount
-			// 	batchLocalForUDP.count * sizeof(PacketLidar);    // trames effectives seulement
-
-			// udp_lidar.beginPacket(server_ip, PORT_LIDAR);
-			// udp_lidar.write((uint8_t*)&batchLocalForUDP, payloadSize);
-			// udp_lidar.endPacket();
-
-
-
-
-		//}
-		//mutex_lidar_frames.unlock();
-
-
-		//Serial.println(packetBatch.frameCount);
-			
-		
-
-
-
-
-
-
-
 
 
 
@@ -494,5 +209,64 @@ void task_com_ros2()
 
 		prochain_reveil += PERIODE_COM;
         rtos::ThisThread::sleep_until(prochain_reveil);
+
+
+
+
+
+		// --------------------
+        // --- Paquet lidar ---
+		// --------------------
+
+		static lidar::Data tramesLocales[MAX_FRAMES_PER_BATCH];
+		mutex_lidar_frames.lock();
+		uint8_t nbTrames = lidar_frames_queue_partagee.size();
+
+		if (nbTrames != 0){
+			for (uint8_t i = 0; i < nbTrames; i++) {
+				tramesLocales[i] = lidar_frames_queue_partagee.front();
+				lidar_frames_queue_partagee.pop_front();
+			}
+
+			lidar_frames_queue_partagee.clear();
+		}
+		
+		mutex_lidar_frames.unlock();
+
+		// for (uint8_t i = 0; i < nbTrames; i++) {
+		// 	// Serial.print(tramesLocales[i].startAngle / 100.0);
+		// 	// Serial.print("  ->  ");
+		// 	// Serial.println(tramesLocales[i].endAngle / 100.0);
+		// 	Serial.println((tramesLocales[i].startAngle - lastAngle) / 100.0);
+		// 	lastAngle = tramesLocales[i].endAngle;
+		// }
+
+		if (nbTrames != 0){
+
+			for (uint8_t i = 0; i < nbTrames; i++) {
+				Serial.print(tramesLocales[i].timestamp);
+				Serial.print(" - ");
+				Serial.print(tramesLocales[i].speed);
+				Serial.print(" - ");
+				Serial.print(tramesLocales[i].startAngle);
+				Serial.print(" - ");
+				Serial.print(tramesLocales[i].endAngle);
+				Serial.print(" --> ");
+				for (uint8_t y = 0; y < nbTrames; y++) {
+					Serial.print(tramesLocales[i].points[y].distance);
+					Serial.print("|");
+				}
+				Serial.println("");
+
+
+
+				udp_lidar.beginPacket(server_ip, PORT_LIDAR);
+				udp_lidar.write((uint8_t*)&tramesLocales[i], 46); // 46 = nombre d'octets envoyés
+				udp_lidar.endPacket();
+			}
+		}
+
+
+
     }
 }

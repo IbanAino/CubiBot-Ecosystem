@@ -64,10 +64,17 @@ bool DataConverter::convert(const uint8_t* frame, Data& data)
 	//Serial.println(data.points[0].angle);
 
     // Timestamp
-    data.timestamp =
-        static_cast<uint16_t>(frame[44]) |
-        (static_cast<uint16_t>(frame[45]) << 8
-	);
+    // data.timestamp =
+    //     static_cast<uint16_t>(frame[44]) |
+    //     (static_cast<uint16_t>(frame[45]) << 8
+	// );
+
+	data.timestamp =
+		static_cast<uint32_t>(frame[47])         |
+		(static_cast<uint32_t>(frame[48]) << 8)  |
+		(static_cast<uint32_t>(frame[49]) << 16) |
+		(static_cast<uint32_t>(frame[50]) << 24);
+
 
 	// Serial.print("   Timestamp: ");
 	// Serial.println(data.timestamp);

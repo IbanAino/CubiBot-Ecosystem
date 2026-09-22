@@ -1,4 +1,6 @@
 #include "LidarDriver.h"
+#include "robot_config.h"
+#include "time_system.h"
 
 namespace lidar {
 
@@ -7,11 +9,14 @@ Driver::Driver(HardwareSerial& serial)
 	  speedController_(2),
       started_(false)
 {
+	pinMode(LIDAR_EN, OUTPUT);
+	digitalWrite(LIDAR_EN, HIGH);
 }
 
 void Driver::begin()
 {
-    serial_.begin(230400);
+    //digitalWrite(LIDAR_EN, HIGH);
+	serial_.begin(230400);
     parser_.reset();
     started_ = true;
 	speedController_.begin();
@@ -62,16 +67,32 @@ void Driver::process()
 
 				// Une trame complète et valide vient d'être reçue.
 				// On la copie dans un std::array pour l'insérer dans la deque.
+
+
 				RawFrame newFrame;
-				memcpy(newFrame.data(), rxFrame_, ProtocolParser::FRAME_LENGTH);
+
+				// Enregistrer rxFrame_ dans newFrame
+				memcpy(
+					newFrame.data(),
+					rxFrame_,
+					ProtocolParser::FRAME_LENGTH
+				);
+
+				// Tiemstamper la newFrame avec le timestamp de la carte Arduino
+				// le temps est ajouté sur 8 octets à la fin de la trame
+				const uint64_t timestamp = get_system_time_ms();
+
+				memcpy(
+					newFrame.data() + ProtocolParser::FRAME_LENGTH,
+					&timestamp,
+					sizeof(timestamp)
+				);
 
 				// Si la deque est pleine, on supprime la trame la plus ancienne (au front)
 				if (frameQueue_.size() >= MAX_FRAME_QUEUE_SIZE) {
 				    frameQueue_.pop_front();
 					//debugCounter++;
 				}
-
-				//Serial.println(debugCounter);
 	
 				// On insère la nouvelle trame à l'arrière (back)
 				frameQueue_.push_back(newFrame);

@@ -66,7 +66,9 @@ private:
    	// Chaque élément de la deque est une trame brute (tableau d'octets).
     // std::array évite d'utiliser un pointeur brut et garantit la copie
     // correcte lors de l'insertion dans la deque.
-    using RawFrame = std::array<uint8_t, ProtocolParser::FRAME_LENGTH>;
+	// structure intègrant les 8 octets (uint64_t) du timestamp à la fin
+	using RawFrame = std::array<uint8_t, ProtocolParser::FRAME_LENGTH + sizeof(uint64_t)>;
+
 
     /**
      * @brief Deque FILO de trames brutes.

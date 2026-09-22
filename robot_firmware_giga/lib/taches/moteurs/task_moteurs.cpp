@@ -7,63 +7,67 @@
 #include "PIDController.h"
 #include "StallWatchdog.h"
 #include "VelocityMotorController.h"
-
+#include "DifferentialOdometryController.h"
 
 // --- 1. Instanciation des composants pour le moteur gauche ---
-// RotaryIncrementalEncoder leftEncoder(
-// 	PIN_LEFT_ENCODER_A ,
-// 	PIN_LEFT_ENCODER_B, 
-// 	TICKS_PER_REV
-// );
-// DCMotor leftMotor(
-// 	PIN_LEFT_MOTOR_EN,
-// 	PIN_LEFT_MOTOR_IN1,
-// 	PIN_LEFT_MOTOR_IN2
-// );
+RotaryIncrementalEncoder leftEncoder1(L1_C1, L1_C2, TICKS_PER_REV);
+RotaryIncrementalEncoder leftEncoder2(L2_C1, L2_C2, TICKS_PER_REV);
+RotaryIncrementalEncoder rightEncoder1(R1_C2, R1_C1, TICKS_PER_REV);
+RotaryIncrementalEncoder rightEncoder2(R2_C2, R2_C1, TICKS_PER_REV);
 
-RotaryIncrementalEncoder leftEncoder(
-	L1_C1 ,
-	L1_C2, 
-	TICKS_PER_REV
-);
-DCMotor leftMotor(
-	L_EN1,
-	L_IN1,
-	L_IN2
-);
+DCMotor leftMotor1(L_EN1, L_IN2, L_IN1);
+DCMotor leftMotor2(L_EN2, L_IN3, L_IN4);
+DCMotor rightMotor1(R_EN1, R_IN1, R_IN2);
+DCMotor rightMotor2(R_EN2, R_IN4, R_IN3);
 
-// RotaryIncrementalEncoder leftEncoder(
-// 	PIN_LEFT_ENCODER_A ,
-// 	PIN_LEFT_ENCODER_B, 
-// 	TICKS_PER_REV
-// );
-// DCMotor leftMotor(
-// 	L_EN1,
-// 	L_IN1,
-// 	L_IN2
-// );
+PIDController leftPID1(200.0f, 100.0f, 0.0f, 100.0f, 0.2f);
+PIDController leftPID2(200.0f, 100.0f, 0.0f, 100.0f, 0.2f);
+PIDController rightPID1(200.0f, 100.0f, 0.0f, 100.0f, 0.2f);
+PIDController rightPID2(200.0f, 100.0f, 0.0f, 100.0f, 0.2f);
 
-// Votre PID (Kp, Ki, Kd, OutMax, Ramp)
-PIDController leftPID(200.0f, 100.0f, 0.0f, 255.0f, 0.2f); 
+StallWatchdog leftStallWatchdog1(0.2f, 1000);
+StallWatchdog leftStallWatchdog2(0.2f, 1000);
+StallWatchdog rightStallWatchdog1(0.2f, 1000);
+StallWatchdog rightStallWatchdog2(0.2f, 1000);
 
-// Chien de garde (Seuil vitesse min, temps max en ms)
-StallWatchdog leftStallWatchdog(0.2f, 1000); 
+VelocityMotorController leftWheel1(leftEncoder1, leftMotor1, leftPID1, leftStallWatchdog1);
+VelocityMotorController leftWheel2(leftEncoder2, leftMotor2, leftPID2, leftStallWatchdog2);
+VelocityMotorController rightWheel1(rightEncoder1, rightMotor1, rightPID1, rightStallWatchdog1);
+VelocityMotorController rightWheel2(rightEncoder2, rightMotor2, rightPID2, rightStallWatchdog2);
 
-// Le contrôleur global qui unifie le tout
-VelocityMotorController leftWheel(leftEncoder, leftMotor, leftPID, leftStallWatchdog);
+DifferentialOdometry odometry(WHEEL_RADIUS_METERS, WHEEL_BASE_METERS);
+DifferentialOdometryController odomController(leftEncoder1, rightEncoder1, odometry);
 
-// --- 2. Wrappers pour les Interruptions (ISR) ---
-// Mbed OS gère les interruptions très rapidement en tâche de fond
-void isrLeftA() { leftEncoder.handleChannelA(); }
-void isrLeftB() { leftEncoder.handleChannelB(); }
+void isrLeft1A() { leftEncoder1.handleChannelA(); }
+void isrLeft1B() { leftEncoder1.handleChannelB(); }
+void isrLeft2A() { leftEncoder2.handleChannelA(); }
+void isrLeft2B() { leftEncoder2.handleChannelB(); }
+void isrRight1A() { rightEncoder1.handleChannelA(); }
+void isrRight1B() { rightEncoder1.handleChannelB(); }
+void isrRight2A() { rightEncoder2.handleChannelA(); }
+void isrRight2B() { rightEncoder2.handleChannelB(); }
 
+float TARGET_VELOCITY = 1.0f; // rev/s
 
 
 // --- 3. Corps de la Tâche de contrôle ---
 void task_moteurs() {
 
   // Liaison des interruptions matérielles de l'encodeur
-  leftEncoder.attachInterrupts(isrLeftA, isrLeftB);
+  leftEncoder1.attachInterrupts(isrLeft1A, isrLeft1B);
+  leftEncoder2.attachInterrupts(isrLeft2A, isrLeft2B);
+  rightEncoder1.attachInterrupts(isrRight1A, isrRight1B);
+  rightEncoder2.attachInterrupts(isrRight2A, isrRight2B);
+
+  leftPID1.setOutputLimits(-255.0f, 255.0f);
+  leftPID2.setOutputLimits(-255.0f, 255.0f);
+  rightPID1.setOutputLimits(-255.0f, 255.0f);
+  rightPID2.setOutputLimits(-255.0f, 255.0f);
+
+  leftWheel1.setTargetVelocity(TARGET_VELOCITY);
+  leftWheel2.setTargetVelocity(TARGET_VELOCITY);
+  rightWheel1.setTargetVelocity(TARGET_VELOCITY);
+  rightWheel2.setTargetVelocity(TARGET_VELOCITY);
 
   // Configuration initiale du PID
   //leftPID.setOutputLimits(-255.0f, 255.0f);
@@ -73,9 +77,15 @@ void task_moteurs() {
 
   auto prochain_reveil = rtos::Kernel::Clock::now();
 
-	//int compteur_log = 0;
 
 	while (true) {
+		leftWheel1.update();
+		leftWheel2.update();
+		rightWheel1.update();
+		rightWheel2.update();
+
+		odomController.update();
+
 	/*
 	// Calcul de l'asservissement
 	leftWheel.update();
