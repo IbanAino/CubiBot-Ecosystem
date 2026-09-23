@@ -1,187 +1,90 @@
-#include "task_control.h"
+#include <Arduino.h>
+#include <WiFi.h>
+#include <WiFiUdp.h>
+#include <rtos.h>
+
+#include "task_com_ros2.h"
 #include "robot_config.h"
+#include "time_system.h"
 
-// Contrôleurs moteur
-#include "VelocityMotorController.h"
-#include "DCMotor.h"
-#include "RotaryIncrementalEncoder.h"
-#include "PIDController.h"
-#include "StallWatchdog.h"
+const uint16_t PORT_COMMANDES_RX = 5010;
+WiFiUDP udp_rx_commandes;
 
-// Odométrie
-#include "DifferentialOdometry.h"
-#include "DifferentialOdometryController.h"
+static uint8_t rx_buffer[64];
 
-#include <math.h>
-
-// -----------------------------------------------------------------------
-// Hardware — encodeurs et moteurs
-// -----------------------------------------------------------------------
-
-static RotaryIncrementalEncoder leftEncoder1(L1_C1, L1_C2, TICKS_PER_REV);
-static RotaryIncrementalEncoder leftEncoder2(L2_C1, L2_C2, TICKS_PER_REV);
-static RotaryIncrementalEncoder rightEncoder1(R1_C1, R1_C2, TICKS_PER_REV);
-static RotaryIncrementalEncoder rightEncoder2(R2_C1, R2_C2, TICKS_PER_REV); // R2_C1 BUUUUUG !!!
-
-static DCMotor leftMotor1(L_EN1, L_IN1, L_IN2);
-static DCMotor leftMotor2(L_EN2, L_IN3, L_IN4);
-static DCMotor rightMotor1(R_EN1, R_IN1, R_IN2);
-static DCMotor rightMotor2(R_EN2, R_IN3, R_IN4);
-
-// -----------------------------------------------------------------------
-// PID — un par roue, gains à régler empiriquement
-// -----------------------------------------------------------------------
-
-static PIDController leftPID1(200.0f,  100.0f, 0.0f, 100.0f, 0.2f);
-static PIDController leftPID2(200.0f,  100.0f, 0.0f, 100.0f, 0.2f);
-static PIDController rightPID1(200.0f, 100.0f, 0.0f, 100.0f, 0.2f);
-static PIDController rightPID2(200.0f, 100.0f, 0.0f, 100.0f, 0.2f);
-
-// -----------------------------------------------------------------------
-// Watchdogs — un par roue
-// -----------------------------------------------------------------------
-
-static StallWatchdog leftStall1(0.2f,  1000);
-static StallWatchdog leftStall2(0.2f,  1000);
-static StallWatchdog rightStall1(0.2f, 1000);
-static StallWatchdog rightStall2(0.2f, 1000);
-
-// -----------------------------------------------------------------------
-// Contrôleurs de vitesse
-// -----------------------------------------------------------------------
-
-static VelocityMotorController leftWheel1(leftEncoder1,  leftMotor1,  leftPID1,  leftStall1);
-static VelocityMotorController leftWheel2(leftEncoder2,  leftMotor2,  leftPID2,  leftStall2);
-static VelocityMotorController rightWheel1(rightEncoder1, rightMotor1, rightPID1, rightStall1);
-static VelocityMotorController rightWheel2(rightEncoder2, rightMotor2, rightPID2, rightStall2);
-
-// -----------------------------------------------------------------------
-// Odométrie
-// Robot différentiel à deux roues motrices moyennées :
-//   vitesse gauche = moyenne(leftWheel1, leftWheel2)
-//   vitesse droite = moyenne(rightWheel1, rightWheel2)
-// -----------------------------------------------------------------------
-
-static DifferentialOdometry odometry(WHEEL_RADIUS_METERS, WHEEL_BASE_METERS);
-static DifferentialOdometryController odomController(leftEncoder1, rightEncoder1, odometry);
-
-// -----------------------------------------------------------------------
-// ISR wrappers — un par canal d'encodeur
-// -----------------------------------------------------------------------
-
-static void isrLeft1A()  { leftEncoder1.handleChannelA(); }
-static void isrLeft1B()  { leftEncoder1.handleChannelB(); }
-static void isrLeft2A()  { leftEncoder2.handleChannelA(); }
-static void isrLeft2B()  { leftEncoder2.handleChannelB(); }
-static void isrRight1A() { rightEncoder1.handleChannelA(); }
-static void isrRight1B() { rightEncoder1.handleChannelB(); }
-static void isrRight2A() { rightEncoder2.handleChannelA(); }
-static void isrRight2B() { rightEncoder2.handleChannelB(); }
-
-// -----------------------------------------------------------------------
-// Cinématique inverse : cmd_vel → consignes par roue
-//
-// v_left  = linear - angular * wheelBase / 2
-// v_right = linear + angular * wheelBase / 2
-// Converti de m/s en rev/s via la circonférence de la roue.
-// -----------------------------------------------------------------------
-
-static void applyVelocityCommand(float linearVelocity, float angularVelocity)
-{
-    const float halfBase       = WHEEL_BASE_METERS / 2.0f;
-    const float circumference  = 2.0f * static_cast<float>(M_PI) * WHEEL_RADIUS_METERS;
-
-    const float leftRevPerSec  = (linearVelocity - angularVelocity * halfBase) / circumference;
-    const float rightRevPerSec = (linearVelocity + angularVelocity * halfBase) / circumference;
-
-    leftWheel1.setTargetVelocity(leftRevPerSec);
-    leftWheel2.setTargetVelocity(leftRevPerSec);
-    rightWheel1.setTargetVelocity(rightRevPerSec);
-    rightWheel2.setTargetVelocity(rightRevPerSec);
-}
-
-// -----------------------------------------------------------------------
-// Tâche principale
-// -----------------------------------------------------------------------
+struct __attribute__((packed)) PacketCommande {
+    float linearVel;
+    float angularVel;
+};
 
 void task_control()
 {
-    auto prochain_reveil = rtos::Kernel::Clock::now();
+    while (WiFi.status() != WL_CONNECTED) {
+        rtos::ThisThread::sleep_for(100ms);
+    }
 
-    // --- Initialisation ---
-	
-    leftEncoder1.attachInterrupts(isrLeft1A,  isrLeft1B);
-	leftEncoder2.attachInterrupts(isrLeft2A,  isrLeft2B);
-    rightEncoder1.attachInterrupts(isrRight1A, isrRight1B);
-    rightEncoder2.attachInterrupts(isrRight2A, isrRight2B);
-	
-    leftPID1.setOutputLimits(-255.0f, 255.0f);
-    leftPID2.setOutputLimits(-255.0f, 255.0f);
-    rightPID1.setOutputLimits(-255.0f, 255.0f);
-    rightPID2.setOutputLimits(-255.0f, 255.0f);
+    udp_rx_commandes.begin(PORT_COMMANDES_RX);
+    Serial.println("[Task Control] Écoute UDP activée sur le port 5010.");
 
-    Serial.println("[Control] Tâche contrôle moteur + odométrie démarrée.");
-	
-	
-	
-	// Serial.print("applyVelocityCommand");
-	// applyVelocityCommand(1.0f, 0.0f);
+    // CORRECTION : Déclaration d'un vrai tableau de stockage
+    //uint8_t rx_buffer[64]; 
 
-
-
-
-    while (true)
-    {
-        
-		// --- 1. Lecture de la consigne de vitesse ---
-        CmdVel cmd;
-        mutex_cmd.lock();
-        cmd = cmd_partagee;
-        mutex_cmd.unlock();
-
-        applyVelocityCommand(cmd.linearVel, cmd.angularVel);
-
-        // --- 2. Mise à jour des contrôleurs moteur (PID) ---
-        leftWheel1.update();
-        leftWheel2.update();
-        rightWheel1.update();
-        rightWheel2.update();
-
-        // --- 3. Mise à jour de l'odométrie ---
-        // Même appel de boucle que le PID → cohérence temporelle garantie
-        odomController.update();
-
-        // --- 4. Calcul des vitesses instantanées ---
-        // Moyenne des deux roues de chaque côté pour un robot à 4 roues
-        const float leftVel  = (leftWheel1.getMeasuredVelocity()
-                              + leftWheel2.getMeasuredVelocity()) / 2.0f;
-        const float rightVel = (rightWheel1.getMeasuredVelocity()
-                              + rightWheel2.getMeasuredVelocity()) / 2.0f;
-
-        // Vitesses robot en m/s et rad/s (cinématique directe)
-        const float circumference = 2.0f * static_cast<float>(M_PI) * WHEEL_RADIUS_METERS;
-        const float linearVel     = (leftVel + rightVel) / 2.0f * circumference;
-        const float angularVel    = (rightVel - leftVel)  * circumference / WHEEL_BASE_METERS;
-
-        // --- 5. Publication de la pose dans la variable partagée ---
-        mutex_odom.lock();
-        odom_partagee.x          = odomController.getX();
-        odom_partagee.y          = odomController.getY();
-        odom_partagee.theta      = odomController.getTheta();
-        odom_partagee.linearVel  = linearVel;
-        odom_partagee.angularVel = angularVel;
-        mutex_odom.unlock();
-
-        // --- 6. Gestion des stalls ---
-        if (leftWheel1.isStalled() || leftWheel2.isStalled()) {
-            Serial.println("[Control] Stall côté gauche détecté.");
+    while (true) {
+        if (WiFi.status() != WL_CONNECTED) {
+            rtos::ThisThread::sleep_for(500ms);
+            continue;
         }
-        if (rightWheel1.isStalled() || rightWheel2.isStalled()) {
-            Serial.println("[Control] Stall côté droit détecté.");
-        }
-		
 
-        prochain_reveil += PERIODE_CONTROL;
-        rtos::ThisThread::sleep_until(prochain_reveil);
+        int packetSize = udp_rx_commandes.parsePacket();
+
+        if (packetSize > 0) {
+
+			Serial.println("[Task Control] Packet reçu !!! ");
+
+            // Sécurité : on borne la lecture à la taille de notre tableau
+            int bytesToRead = (packetSize > 64) ? 64 : packetSize;
+            
+            // CORRECTION : On passe le tableau, ce qui fournit le bon pointeur à la fonction
+            udp_rx_commandes.read(rx_buffer, bytesToRead);
+            
+            // Extraction de l'ID du premier octet
+            uint8_t command_id = rx_buffer[0];
+
+            // CAS 1 : Synchronisation Temporelle ROS2 (0xEE)
+            if (command_id == 0xEE && bytesToRead >= 9) {
+                uint64_t pc_unix_time_ms = 0;
+                
+                // CORRECTION : On lit à partir de l'index 1 (juste après le 0xEE)
+                memcpy(&pc_unix_time_ms, &rx_buffer[1], sizeof(pc_unix_time_ms));
+                
+                set_system_time_ms(pc_unix_time_ms);
+                
+                Serial.print("[Task Control] Packet reçu !!! Horloge calée sur : ");
+                Serial.println((unsigned long)(pc_unix_time_ms / 1000));
+            }
+            
+            // CAS 2 : Commande de vitesse (8 octets bruts envoyés par Python '<ff')
+            // Note : Comme votre Python actuel n'envoie PAS de header ID pour la vitesse, 
+            // le paquet fait exactement 8 octets, et le premier float commence à l'index 0.
+            else if (packetSize == sizeof(PacketCommande)) {
+                PacketCommande packet_commande;
+                
+                // Copie directe de tout le buffer
+                memcpy(&packet_commande, rx_buffer, sizeof(PacketCommande));
+
+                mutex_cmd_vel.lock();
+                cmd_vel_partagee.linearVel  = packet_commande.linearVel;
+                cmd_vel_partagee.angularVel = packet_commande.angularVel;
+                mutex_cmd_vel.unlock();
+
+                Serial.print("[Task Control] Packet reçu !!! Vitesse Lin: ");
+                Serial.print(packet_commande.linearVel, 3);
+                Serial.print(" | Ang: ");
+                Serial.println(packet_commande.angularVel, 3);
+            }
+        }
+
+        // Temps de repos pour que Mbed OS rafraîchisse la pile WiFi
+        rtos::ThisThread::sleep_for(10ms);
     }
 }

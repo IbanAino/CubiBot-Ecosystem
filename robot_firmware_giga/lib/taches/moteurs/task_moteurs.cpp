@@ -1,6 +1,7 @@
 #include "task_moteurs.h"
 #include "robot_config.h"
 
+
 // Inclusions de vos briques logicielles stockées dans lib/drivers/
 #include "DCMotor.h"
 #include "RotaryIncrementalEncoder.h"
@@ -8,6 +9,7 @@
 #include "StallWatchdog.h"
 #include "VelocityMotorController.h"
 #include "DifferentialOdometryController.h"
+#include "time_system.h"
 
 // --- 1. Instanciation des composants pour le moteur gauche ---
 RotaryIncrementalEncoder leftEncoder1(L1_C1, L1_C2, TICKS_PER_REV);
@@ -47,35 +49,50 @@ void isrRight1B() { rightEncoder1.handleChannelB(); }
 void isrRight2A() { rightEncoder2.handleChannelA(); }
 void isrRight2B() { rightEncoder2.handleChannelB(); }
 
-float TARGET_VELOCITY = 1.0f; // rev/s
+
+
+
+// float TARGET_VELOCITY = 0.0f; // rev/s
+
+
+
+
+namespace {
+    OdomData local_odom;
+}
 
 
 // --- 3. Corps de la Tâche de contrôle ---
 void task_moteurs() {
 
-  // Liaison des interruptions matérielles de l'encodeur
-  leftEncoder1.attachInterrupts(isrLeft1A, isrLeft1B);
-  leftEncoder2.attachInterrupts(isrLeft2A, isrLeft2B);
-  rightEncoder1.attachInterrupts(isrRight1A, isrRight1B);
-  rightEncoder2.attachInterrupts(isrRight2A, isrRight2B);
+	// Liaison des interruptions matérielles de l'encodeur
+	leftEncoder1.attachInterrupts(isrLeft1A, isrLeft1B);
+	leftEncoder2.attachInterrupts(isrLeft2A, isrLeft2B);
+	rightEncoder1.attachInterrupts(isrRight1A, isrRight1B);
+	rightEncoder2.attachInterrupts(isrRight2A, isrRight2B);
 
-  leftPID1.setOutputLimits(-255.0f, 255.0f);
-  leftPID2.setOutputLimits(-255.0f, 255.0f);
-  rightPID1.setOutputLimits(-255.0f, 255.0f);
-  rightPID2.setOutputLimits(-255.0f, 255.0f);
+	leftPID1.setOutputLimits(-255.0f, 255.0f);
+	leftPID2.setOutputLimits(-255.0f, 255.0f);
+	rightPID1.setOutputLimits(-255.0f, 255.0f);
+	rightPID2.setOutputLimits(-255.0f, 255.0f);
 
-  leftWheel1.setTargetVelocity(TARGET_VELOCITY);
-  leftWheel2.setTargetVelocity(TARGET_VELOCITY);
-  rightWheel1.setTargetVelocity(TARGET_VELOCITY);
-  rightWheel2.setTargetVelocity(TARGET_VELOCITY);
+	// leftWheel1.setTargetVelocity(TARGET_VELOCITY);
+	// leftWheel2.setTargetVelocity(TARGET_VELOCITY);
+	// rightWheel1.setTargetVelocity(TARGET_VELOCITY);
+	// rightWheel2.setTargetVelocity(TARGET_VELOCITY);
 
-  // Configuration initiale du PID
-  //leftPID.setOutputLimits(-255.0f, 255.0f);
-  
-  // Consigne de test : 0.5 tour par seconde
-  //leftWheel.setTargetVelocity(1.0f); 
+	leftWheel1.stop();
+	leftWheel2.stop();
+	rightWheel1.stop();
+	rightWheel2.stop();
 
-  auto prochain_reveil = rtos::Kernel::Clock::now();
+	// Configuration initiale du PID
+	//leftPID.setOutputLimits(-255.0f, 255.0f);
+
+	// Consigne de test : 0.5 tour par seconde
+	//leftWheel.setTargetVelocity(1.0f); 
+
+	auto prochain_reveil = rtos::Kernel::Clock::now();
 
 
 	while (true) {
@@ -84,32 +101,85 @@ void task_moteurs() {
 		rightWheel1.update();
 		rightWheel2.update();
 
-		odomController.update();
+        // --- 3. Mise à jour de l'odométrie ---
+        // Même appel de boucle que le PID → cohérence temporelle garantie
+        odomController.update();
 
-	/*
-	// Calcul de l'asservissement
-	leftWheel.update();
+        //--- 4. Calcul des vitesses instantanées ---
+        //Moyenne des deux roues de chaque côté pour un robot à 4 roues
+        const float leftVel  = (leftWheel1.getMeasuredVelocity()
+                              + leftWheel2.getMeasuredVelocity()) / 2.0f;
+        const float rightVel = (rightWheel1.getMeasuredVelocity()
+                              + rightWheel2.getMeasuredVelocity()) / 2.0f;
 
-	compteur_log++;
-	if (compteur_log >= 25) { // 25 * 20ms = 500ms
-		compteur_log = 0;
+        // // Vitesses robot en m/s et rad/s (cinématique directe)
+        const float circumference = 2.0f * static_cast<float>(M_PI) * WHEEL_RADIUS_METERS;
+        const float linearVel     = (leftVel + rightVel) / 2.0f * circumference;
+        const float angularVel    = (rightVel - leftVel)  * circumference / WHEEL_BASE_METERS;
+		
 
-		// Récupération des valeurs internes de vos briques logicielles
-		float vit_mesuree = leftEncoder.getSpeed(); // ou la fonction équivalente de votre classe
-		int ticks = leftEncoder.getTicks();            // pour vérifier si l'encodeur bouge
-		uint8_t pwm_envoi = leftMotor.getSpeed();
+        // // --- 5. Publication de la pose dans la variable partagée ---
+		local_odom.timestamp = get_system_time_ms();
+		local_odom.x = odomController.getX();
+		local_odom.y = odomController.getY();
+		local_odom.theta = odomController.getTheta();
+		local_odom.linearVel = linearVel;
+		local_odom.angularVel = angularVel;
 
-		Serial.print("[MOTEUR GAUCHE] Ticks: ");
-		Serial.print(ticks);
-		Serial.print(" | Vit. Mesurée: ");
-		Serial.print(vit_mesuree);
-		Serial.print(" | PWM envoyé: ");
-		Serial.println(pwm_envoi);
-	}
-	*/
-	prochain_reveil += PERIODE_MOTEURS;
-	
-	rtos::ThisThread::sleep_until(prochain_reveil);
+		mutex_odom_partagee.lock();
+		odom_partagee = local_odom;
+		mutex_odom_partagee.unlock();
+
+
+		// Serial.print("[task_moteurs] Odom : ");
+		// Serial.print("timeStamp=");
+		// Serial.print(local_odom.timestamp);
+		// Serial.print("x=");
+		// Serial.print(local_odom.x, 3);
+		// Serial.print(" m | y=");
+		// Serial.print(local_odom.y, 3);
+		// Serial.print(" m | theta=");
+		// Serial.print(local_odom.theta, 3);
+		// Serial.print(" rad | linearVel=");
+		// Serial.print(local_odom.linearVel, 3);
+		// Serial.print(" m/s | angularVel=");
+		// Serial.print(local_odom.angularVel, 3);
+		// Serial.println(" rad/s");
+
+
+		// local_odom.timestamp = get_system_time_ms();
+		// local_odom.x = odomController.getX();
+		// local_odom.y = odomController.getY();
+		// local_odom.theta = odomController.getTheta();
+
+		// mutex_odom_partagee.lock();
+		// odom_partagee = local_odom;
+		// mutex_odom_partagee.unlock();
+
+		/*
+		// Calcul de l'asservissement
+		leftWheel.update();
+
+		compteur_log++;
+		if (compteur_log >= 25) { // 25 * 20ms = 500ms
+			compteur_log = 0;
+
+			// Récupération des valeurs internes de vos briques logicielles
+			float vit_mesuree = leftEncoder.getSpeed(); // ou la fonction équivalente de votre classe
+			int ticks = leftEncoder.getTicks();            // pour vérifier si l'encodeur bouge
+			uint8_t pwm_envoi = leftMotor.getSpeed();
+
+			Serial.print("[MOTEUR GAUCHE] Ticks: ");
+			Serial.print(ticks);
+			Serial.print(" | Vit. Mesurée: ");
+			Serial.print(vit_mesuree);
+			Serial.print(" | PWM envoyé: ");
+			Serial.println(pwm_envoi);
+		}
+		*/
+		prochain_reveil += PERIODE_MOTEURS;
+		
+		rtos::ThisThread::sleep_until(prochain_reveil);
 	
 	}
 }

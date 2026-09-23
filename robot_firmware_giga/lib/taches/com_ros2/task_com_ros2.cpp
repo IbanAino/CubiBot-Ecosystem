@@ -5,6 +5,9 @@
 #include <WiFiUdp.h>
 #include <Arduino.h>
 
+#include <rtos.h>
+#include <mbed_events.h> 
+
 int debugCounter2 = 0;
 int lastAngle = 0;
 
@@ -20,6 +23,11 @@ const uint16_t PORT_ODOMETRIE = 5007;
 const uint16_t PORT_COMMANDES = 5010;
 
 
+// extern WiFiUDP udp_telemetre;
+// extern WiFiUDP udp_lidar;
+// extern WiFiUDP udp_odometrie;
+// extern WiFiUDP udp_commandes;
+
 WiFiUDP udp_telemetre;
 WiFiUDP udp_lidar;
 WiFiUDP udp_odometrie;
@@ -29,7 +37,16 @@ WiFiUDP udp_commandes;
 PacketTelemeter local_packet;
 lidar::Data     local_lidar;
 LidarBatch batchLocal;
-OdomData local_odom;
+
+static uint8_t rx_buffer[64];
+
+namespace {
+    OdomData local_odom;
+}
+
+// namespace arduino {
+//     void steps(); 
+// }
 
 // ---------------------------------------------------------------------------
 // Structure binaire envoyée sur le réseau pour un point lidar
@@ -75,13 +92,35 @@ struct __attribute__((packed)) PacketCommande {
 // ---------------------------------------------------------------------------
 // Reconnexion WiFi
 // ---------------------------------------------------------------------------
+// static void connectWiFi()
+// {
+//     Serial.println("[Réseau] Try to connect WiFi"); // Do not delete, force the serial buffer allocation before wifi calling
+// 	WiFi.begin(ssid, password);
+//     while (WiFi.status() != WL_CONNECTED) {
+// 		Serial.println("[Réseau] try");
+//         rtos::ThisThread::sleep_for(1000ms);
+//     }
+//     Serial.println("[Réseau] Wi-Fi connecté.");
+// }
+
 static void connectWiFi()
 {
-    Serial.println("[Réseau] Try to connect WiFi"); // Do not delete, force the serial buffer allocation before wifi calling
-	WiFi.begin(ssid, password);
     while (WiFi.status() != WL_CONNECTED) {
-        rtos::ThisThread::sleep_for(500ms);
+
+        Serial.println("[Réseau] Try to connect WiFi");
+
+        WiFi.begin(ssid, password);
+
+        for (int i = 0; i < 10; ++i) {
+
+            if (WiFi.status() == WL_CONNECTED) {
+                break;
+            }
+
+            rtos::ThisThread::sleep_for(1000ms);
+        }
     }
+
     Serial.println("[Réseau] Wi-Fi connecté.");
 }
 
@@ -94,79 +133,81 @@ void task_com_ros2()
 
     connectWiFi();
 
-    udp_telemetre.begin(PORT_TELEMETRE);
+    //udp_telemetre.begin(PORT_TELEMETRE); // Bug !!! -> no UDP in 
     udp_lidar.begin(PORT_LIDAR);
 	udp_odometrie.begin(PORT_ODOMETRIE);
 	udp_commandes.begin(PORT_COMMANDES);
+
+	rtos::ThisThread::sleep_for(100ms);
 
     while (true) {
         if (WiFi.status() != WL_CONNECTED) {
             connectWiFi();
         }
 
-		// ---------------------------
-		// --- Récpetion commandes ---
-		// ---------------------------
+        // ===================================================================
+        // LE CORRECTIF COMPATIBLE PLATFORMIO / MBED OS :
+        // Force le noyau à traiter les paquets en attente dans la pile Murata WiFi
+        // ===================================================================
+        rtos::ThisThread::yield(); 
+
+		//Serial.println("[Task Control] loop ");
+
+
+        // ===================================================================
+        // 1. PARTIE RÉCEPTION (Rx) : Ultra-rapide et non-bloquante
+        // ===================================================================
+        int packetSize = udp_commandes.parsePacket();
+        if (packetSize > 0) {
+
+			Serial.println("[Task Control] Packet reçu !!! ");
+
+            //uint8_t rx_buffer[64];
+            int bytesToRead = (packetSize > 64) ? 64 : packetSize;
+            udp_commandes.read(rx_buffer, bytesToRead);
+            
+            uint8_t command_id = rx_buffer[0];
+
+            // CAS A : Synchronisation Temporelle ROS2 (0xEE)
+            if (command_id == 0xEE && bytesToRead >= 9) {
+                uint64_t pc_unix_time_ms = 0;
+                memcpy(&pc_unix_time_ms, &rx_buffer[1], sizeof(pc_unix_time_ms));
+                set_system_time_ms(pc_unix_time_ms);
+                Serial.println("[Com] Horloge calée sur le temps UNIX PC.");
+            }
+            // CAS B : Commande de vitesse (8 octets bruts du format Python '<ff')
+            else if (packetSize == sizeof(PacketCommande)) {
+                PacketCommande packet_commande;
+                memcpy(&packet_commande, rx_buffer, sizeof(PacketCommande));
+
+                mutex_cmd_vel.lock();
+                cmd_vel_partagee.linearVel  = packet_commande.linearVel;
+                cmd_vel_partagee.angularVel = packet_commande.angularVel;
+                mutex_cmd_vel.unlock();
+            }
+        }
+
+
+
+        // ===================================================================
+        // 2. PARTIE ÉMISSION (Tx) : Télémétrie & Odométrie
+        // ===================================================================
+
+		// // -------------------------
+        // // --- Paquet télémétrie ---
+		// // -------------------------
 		
-		int packetSize = udp_commandes.parsePacket();
+        // mutex_telemeter.lock();
+        // local_packet = telemeter_partagee;
+        // mutex_telemeter.unlock();
 
-		if (packetSize == sizeof(PacketCommande)) {
+        // mutex_batterie.lock();
+        // local_packet.tension_batterie = batterie_tension_partagee;
+        // mutex_batterie.unlock();
 
-			PacketCommande packet_commande;
-
-			udp_commandes.read(
-				(uint8_t*)&packet_commande,
-				sizeof(PacketCommande)
-			);
-
-			mutex_cmd_vel.lock();
-
-			cmd_vel_partagee.linearVel  = packet_commande.linearVel;
-			cmd_vel_partagee.angularVel = packet_commande.angularVel;
-
-			mutex_cmd_vel.unlock();
-
-			Serial.print("[ROS2] Commande : ");
-			Serial.print("linearVel=");
-			Serial.print(packet_commande.linearVel, 3);
-			Serial.print(" m/s | angularVel=");
-			Serial.print(packet_commande.angularVel, 3);
-			Serial.println(" rad/s");
-
-		}
-		else if (packetSize > 0) {
-
-			// Paquet reçu mais de taille incorrecte
-			Serial.print("[ROS2] Paquet commande incorrect : ");
-			Serial.print(packetSize);
-			Serial.print(" octets reçus, ");
-			Serial.print(sizeof(PacketCommande));
-			Serial.println(" attendus");
-
-			// Vider le paquet incorrect
-			while (udp_commandes.available() > 0) {
-				udp_commandes.read();
-			}
-		}
-
-
-
-
-		// -------------------------
-        // --- Paquet télémétrie ---
-		// -------------------------
-		
-        mutex_telemeter.lock();
-        local_packet = telemeter_partagee;
-        mutex_telemeter.unlock();
-
-        mutex_batterie.lock();
-        local_packet.tension_batterie = batterie_tension_partagee;
-        mutex_batterie.unlock();
-
-        udp_telemetre.beginPacket(server_ip, PORT_TELEMETRE);
-        udp_telemetre.write((uint8_t*)&local_packet, sizeof(PacketTelemeter));
-        udp_telemetre.endPacket();
+        // udp_telemetre.beginPacket(server_ip, PORT_TELEMETRE);
+        // udp_telemetre.write((uint8_t*)&local_packet, sizeof(PacketTelemeter));
+        // udp_telemetre.endPacket();
 
 
 
@@ -175,9 +216,9 @@ void task_com_ros2()
 		// --- Paquet odométrie ---
 		//-------------------------
 
-		mutex_odom.lock();
+		mutex_odom_partagee.lock();
 		local_odom = odom_partagee;
-		mutex_odom.unlock();
+		mutex_odom_partagee.unlock();
 
 		OdomData packet_odom;
 
@@ -196,7 +237,7 @@ void task_com_ros2()
 		udp_odometrie.endPacket();
 
 		// --- Debug odométrie ---
-		// Serial.print("[ROS2] Odom : ");
+		// Serial.print("[Task com ros2] Odom : ");
 		// Serial.print("x=");
 		// Serial.print(local_odom.x, 3);
 		// Serial.print(" m | y=");
@@ -209,8 +250,7 @@ void task_com_ros2()
 		// Serial.print(local_odom.angularVel, 3);
 		// Serial.println(" rad/s");
 
-		prochain_reveil += PERIODE_COM;
-        rtos::ThisThread::sleep_until(prochain_reveil);
+
 
 
 
@@ -246,29 +286,30 @@ void task_com_ros2()
 		if (nbTrames != 0){
 
 			for (uint8_t i = 0; i < nbTrames; i++) {
-				Serial.print(tramesLocales[i].timestamp);
-				Serial.print(" - ");
-				Serial.print(tramesLocales[i].speed);
-				Serial.print(" - ");
-				Serial.print(tramesLocales[i].startAngle);
-				Serial.print(" - ");
-				Serial.print(tramesLocales[i].endAngle);
-				Serial.print(" --> ");
-				for (uint8_t y = 0; y < nbTrames; y++) {
-					Serial.print(tramesLocales[i].points[y].distance);
-					Serial.print("|");
-				}
-				Serial.println("");
+				// Serial.print(tramesLocales[i].timestamp);
+				// Serial.print(" - ");
+				// Serial.print(tramesLocales[i].speed);
+				// Serial.print(" - ");
+				// Serial.print(tramesLocales[i].startAngle);
+				// Serial.print(" - ");
+				// Serial.print(tramesLocales[i].endAngle);
+				// Serial.print(" --> ");
+				// for (uint8_t y = 0; y < nbTrames; y++) {
+				// 	Serial.print(tramesLocales[i].points[y].distance);
+				// 	Serial.print("|");
+				// }
+				// Serial.println("");
 
 
 
 				udp_lidar.beginPacket(server_ip, PORT_LIDAR);
-				udp_lidar.write((uint8_t*)&tramesLocales[i], 46); // 46 = nombre d'octets envoyés
+				udp_lidar.write((uint8_t*)&tramesLocales[i], 50); // 50 = nombre d'octets envoyés
 				udp_lidar.endPacket();
 			}
 		}
 
-
+		prochain_reveil += PERIODE_COM;
+        rtos::ThisThread::sleep_until(prochain_reveil);
 
     }
 }

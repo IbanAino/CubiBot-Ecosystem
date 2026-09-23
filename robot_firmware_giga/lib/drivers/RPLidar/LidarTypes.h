@@ -34,7 +34,7 @@ struct __attribute__((packed)) Point
 
 struct __attribute__((packed)) Data
 {
-    uint16_t timestamp;
+    uint64_t timestamp;
 	uint16_t speed;
     uint16_t startAngle;
 	uint16_t endAngle;

@@ -118,7 +118,7 @@ void task_perception() {
 			// On va donc faire 2 fois pop_front() pour que le compte soit bon).
 			while ((lidar_frames_queue_partagee.size() + nbTrames) > MAX_FRAMES_PER_BATCH) {
 				lidar_frames_queue_partagee.pop_front();
-				Serial.println("[task_perception] queue full - delete data");
+				//Serial.println("[task_perception] lidar queue full - delete data");
 			}
 
 			// Insertion sécurisée : la deque ne dépassera JAMAIS MAX_FRAMES_PER_BATCH

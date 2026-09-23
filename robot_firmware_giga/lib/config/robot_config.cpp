@@ -26,5 +26,5 @@ CmdVel cmd_vel_partagee;
 rtos::Mutex mutex_cmd;
 CmdVel      cmd_partagee;
 
-rtos::Mutex mutex_odom;
+rtos::Mutex mutex_odom_partagee;
 OdomData    odom_partagee;

@@ -142,7 +142,7 @@ struct __attribute__((packed)) OdomData {
     float angularVel;    // rad/s
 };
  
-extern rtos::Mutex mutex_odom;
+extern rtos::Mutex mutex_odom_partagee;
 extern OdomData    odom_partagee;
  
 // ------------------------------------------------------------------
