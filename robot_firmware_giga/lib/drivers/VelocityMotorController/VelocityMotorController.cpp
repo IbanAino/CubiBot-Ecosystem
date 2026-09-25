@@ -137,6 +137,7 @@ bool VelocityMotorController::isStalled() const
 void VelocityMotorController::clearStall()
 {
     _stallWatchdog.reset();
+	Serial.println("[VelocityMotorController] clearStall");
 }
 
 // -----------------------------------------------------------------------

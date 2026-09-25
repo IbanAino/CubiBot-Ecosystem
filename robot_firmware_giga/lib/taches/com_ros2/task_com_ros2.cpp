@@ -166,7 +166,7 @@ void task_com_ros2()
 
 		if (packetSize > 0) {
 
-			Serial.println("[Task Control] Packet reçu !!!");
+			//Serial.println("[Task Com] Packet reçu !!!");
 
 			int bytesToRead = (packetSize > 64) ? 64 : packetSize;
 
@@ -190,9 +190,9 @@ void task_com_ros2()
 
 				set_system_time_ms(pc_unix_time_ms);
 
-				Serial.println(
-					"[Com] Horloge calée sur le temps UNIX PC."
-				);
+				// Serial.println(
+				// 	"[Com] Horloge calée sur le temps UNIX PC."
+				// );
 			}
 
 			// ---------------------------------------------------------
@@ -212,13 +212,14 @@ void task_com_ros2()
 				cmd_vel_partagee.angularVel = angularVel;
 				cmd_vel_partagee.lastUpdate = millis();
 				cmd_vel_partagee.stopRequested = false;
+				cmd_vel_partagee.resetRequested = false;
 
 				mutex_cmd_vel.unlock();
 
-				Serial.print("[Com] CMD lin=");
-				Serial.print(linearVel);
-				Serial.print(" ang=");
-				Serial.println(angularVel);
+				// Serial.print("[Com] CMD lin=");
+				// Serial.print(linearVel);
+				// Serial.print(" ang=");
+				// Serial.println(angularVel);
 			}
 
 			// ---------------------------------------------------------
@@ -232,31 +233,39 @@ void task_com_ros2()
 				cmd_vel_partagee.angularVel = 0.0f;
 				cmd_vel_partagee.lastUpdate = millis();
 				cmd_vel_partagee.stopRequested = true;
+				cmd_vel_partagee.resetRequested = false;
 
 				mutex_cmd_vel.unlock();
 
-				Serial.println("[Com] STOP");
+				//Serial.println("[Com] STOP");
 			}
 
 			// ---------------------------------------------------------
 			// RESET
 			// ---------------------------------------------------------
-			else if (command_id == CMD_RESET &&
-					bytesToRead == 1) {
+			else if (command_id == CMD_RESET && bytesToRead == 1) {
 
-				Serial.println("[Com] RESET");
+				//Serial.println("[Com] RESET");
 
-				// Traitement du RESET ici
+				mutex_cmd_vel.lock();
+
+				cmd_vel_partagee.linearVel = 0.0f;
+				cmd_vel_partagee.angularVel = 0.0f;
+				cmd_vel_partagee.lastUpdate = millis();
+				cmd_vel_partagee.stopRequested = false;
+				cmd_vel_partagee.resetRequested = true;
+
+				mutex_cmd_vel.unlock();
 			}
 
 			// ---------------------------------------------------------
 			// ID inconnu
 			// ---------------------------------------------------------
-			else {
+			// else {
 
-				Serial.print("[Com] Commande inconnue : 0x");
-				Serial.println(command_id, HEX);
-			}
+			// 	Serial.print("[Com] Commande inconnue : 0x");
+			// 	Serial.println(command_id, HEX);
+			// }
 		}
 
 
@@ -387,6 +396,5 @@ void task_com_ros2()
 
 		prochain_reveil += PERIODE_COM;
         rtos::ThisThread::sleep_until(prochain_reveil);
-
     }
 }

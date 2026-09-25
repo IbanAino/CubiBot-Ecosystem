@@ -1,3 +1,4 @@
+#include <Arduino.h>
 #include "task_moteurs.h"
 #include "robot_config.h"
 
@@ -55,6 +56,8 @@ MotorCommand motor_cmd_local;
 // float angularVel;  // rad/s
 // float TARGET_VELOCITY = 0.0f; // rev/s
 
+bool motorsStopped = true;
+
 
 
 
@@ -102,14 +105,33 @@ void task_moteurs() {
 		motor_cmd_local = motor_cmd_partagee;
 		mutex_motor_cmd.unlock();
 
-		if (motor_cmd_local.stop) {
-
+		if (motor_cmd_local.reset) {
 			leftWheel1.stop();
 			leftWheel2.stop();
 			rightWheel1.stop();
 			rightWheel2.stop();
 
+			leftWheel1.clearStall();
+			leftWheel2.clearStall();
+			rightWheel1.clearStall();
+			rightWheel2.clearStall();
+
+			//Serial.println("[task_moteur] motor_cmd_local.reset");
+
+		} else if (motor_cmd_local.stop) {
+			if (!motorsStopped) {
+				leftWheel1.stop();
+				leftWheel2.stop();
+				rightWheel1.stop();
+				rightWheel2.stop();
+			}
+
+			//Serial.println("[task_moteur] motor_cmd_local.stop");
+
 		} else {
+			if (motorsStopped) {
+				motorsStopped = false;
+			}
 
 			leftWheel1.setTargetVelocity(
 				motor_cmd_local.leftVelocity);

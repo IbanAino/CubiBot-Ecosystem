@@ -24,7 +24,8 @@ CmdVel cmd_vel_partagee = {
     0.0f,
     0.0f,
     0,
-    true
+    true,
+	false
 };
 
 
@@ -41,7 +42,8 @@ OdomData    odom_partagee;
 MotorCommand motor_cmd_partagee = {
     0.0f,
     0.0f,
-    true
+    true,
+	false,
 };
 
 rtos::Mutex mutex_motor_cmd;

@@ -156,6 +156,7 @@ struct CmdVel
     float angularVel;
     uint32_t lastUpdate;
     bool stopRequested;
+	bool resetRequested;
 };
  
 extern rtos::Mutex mutex_cmd;
@@ -170,6 +171,7 @@ struct MotorCommand
     float leftVelocity;     // vitesse côté gauche [rev/s]
     float rightVelocity;    // vitesse côté droit [rev/s]
     bool stop;
+	bool reset;
 };
 
 extern MotorCommand motor_cmd_partagee;

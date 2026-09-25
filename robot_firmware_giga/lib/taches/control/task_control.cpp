@@ -9,6 +9,8 @@
 static constexpr uint32_t COMMAND_TIMEOUT_MS = 500;
 
 
+
+
 // ============================================================================
 // Tâche de contrôle
 // ============================================================================
@@ -16,6 +18,8 @@ static constexpr uint32_t COMMAND_TIMEOUT_MS = 500;
 void task_control()
 {
     CmdVel cmd_vel_local;
+
+	bool resetRequested = false;
 
     while (true) {
 
@@ -36,6 +40,8 @@ void task_control()
 
         if ((now - cmd_vel_local.lastUpdate) > COMMAND_TIMEOUT_MS) {
 
+			//Serial.println("[task_control] WATCHDOG - no input command");
+
             // Perte de communication :
             // on envoie des consignes nulles aux moteurs.
 
@@ -44,11 +50,9 @@ void task_control()
             motor_cmd_partagee.leftVelocity = 0.0f;
             motor_cmd_partagee.rightVelocity = 0.0f;
             motor_cmd_partagee.stop = true;
+			motor_cmd_partagee.reset = false;
 
             mutex_motor_cmd.unlock();
-
-            rtos::ThisThread::sleep_for(10ms);
-            continue;
         }
 
 
@@ -88,10 +92,22 @@ void task_control()
 
         motor_cmd_partagee.leftVelocity = leftRevPerSec;
         motor_cmd_partagee.rightVelocity = rightRevPerSec;
-        motor_cmd_partagee.stop = false;
+        motor_cmd_partagee.stop = cmd_vel_local.stopRequested;
+
+
+		if (cmd_vel_local.resetRequested && !resetRequested){
+			motor_cmd_partagee.reset = true;
+			resetRequested = true;
+		}
+		else if (!cmd_vel_local.resetRequested && resetRequested){
+			resetRequested = false;
+			motor_cmd_partagee.reset = false;
+		}
+
+		//motor_cmd_partagee.reset = cmd_vel_local.resetRequested;
+
 
         mutex_motor_cmd.unlock();
-
 
         // --------------------------------------------------------------------
         // 6. Période de contrôle
