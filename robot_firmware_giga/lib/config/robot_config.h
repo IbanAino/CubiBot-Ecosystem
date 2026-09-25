@@ -40,8 +40,8 @@ extern rtos::Mutex    mutex_lidar;
 extern lidar::Data    lidar_data_partagee;
 
 
-static constexpr float WHEEL_RADIUS_METERS = 0.0425f; // 4.3 cm diameter
-static constexpr float WHEEL_BASE_METERS   = 0.088f;
+static constexpr float WHEEL_RADIUS = 0.0425f; // 4.3 cm diameter
+static constexpr float WHEEL_BASE   = 0.088f;
 
 static constexpr size_t MAX_FRAMES_PER_BATCH = 20; // même taille que lidarTypes.h/MAX_FRAME_QUEUE_SIZE
 
@@ -150,9 +150,12 @@ extern OdomData    odom_partagee;
 // (produite par task_com_ros2, consommée par task_control)
 // ------------------------------------------------------------------
  
-struct CmdVel {
-    float linearVel;   // m/s
-    float angularVel;  // rad/s
+struct CmdVel
+{
+    float linearVel;
+    float angularVel;
+    uint32_t lastUpdate;
+    bool stopRequested;
 };
  
 extern rtos::Mutex mutex_cmd;
@@ -160,6 +163,17 @@ extern CmdVel      cmd_partagee;
 
 extern rtos::Mutex mutex_cmd_vel;
 extern CmdVel cmd_vel_partagee;
+
+
+struct MotorCommand
+{
+    float leftVelocity;     // vitesse côté gauche [rev/s]
+    float rightVelocity;    // vitesse côté droit [rev/s]
+    bool stop;
+};
+
+extern MotorCommand motor_cmd_partagee;
+extern rtos::Mutex mutex_motor_cmd;
 
 
 #endif

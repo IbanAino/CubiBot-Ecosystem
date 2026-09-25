@@ -22,6 +22,11 @@ const uint16_t PORT_LIDAR     = 5006;
 const uint16_t PORT_ODOMETRIE = 5007;
 const uint16_t PORT_COMMANDES = 5010;
 
+const uint8_t CMD_VELOCITY = 0x01;
+const uint8_t CMD_STOP     = 0x02;
+const uint8_t CMD_RESET    = 0x03;
+const uint8_t CMD_TIME_SYNC = 0xEE;
+
 
 // extern WiFiUDP udp_telemetre;
 // extern WiFiUDP udp_lidar;
@@ -157,35 +162,102 @@ void task_com_ros2()
         // ===================================================================
         // 1. PARTIE RÉCEPTION (Rx) : Ultra-rapide et non-bloquante
         // ===================================================================
-        int packetSize = udp_commandes.parsePacket();
-        if (packetSize > 0) {
+		int packetSize = udp_commandes.parsePacket();
 
-			Serial.println("[Task Control] Packet reçu !!! ");
+		if (packetSize > 0) {
 
-            //uint8_t rx_buffer[64];
-            int bytesToRead = (packetSize > 64) ? 64 : packetSize;
-            udp_commandes.read(rx_buffer, bytesToRead);
-            
-            uint8_t command_id = rx_buffer[0];
+			Serial.println("[Task Control] Packet reçu !!!");
 
-            // CAS A : Synchronisation Temporelle ROS2 (0xEE)
-            if (command_id == 0xEE && bytesToRead >= 9) {
-                uint64_t pc_unix_time_ms = 0;
-                memcpy(&pc_unix_time_ms, &rx_buffer[1], sizeof(pc_unix_time_ms));
-                set_system_time_ms(pc_unix_time_ms);
-                Serial.println("[Com] Horloge calée sur le temps UNIX PC.");
-            }
-            // CAS B : Commande de vitesse (8 octets bruts du format Python '<ff')
-            else if (packetSize == sizeof(PacketCommande)) {
-                PacketCommande packet_commande;
-                memcpy(&packet_commande, rx_buffer, sizeof(PacketCommande));
+			int bytesToRead = (packetSize > 64) ? 64 : packetSize;
 
-                mutex_cmd_vel.lock();
-                cmd_vel_partagee.linearVel  = packet_commande.linearVel;
-                cmd_vel_partagee.angularVel = packet_commande.angularVel;
-                mutex_cmd_vel.unlock();
-            }
-        }
+			udp_commandes.read(rx_buffer, bytesToRead);
+
+			const uint8_t command_id = rx_buffer[0];
+
+			// ---------------------------------------------------------
+			// Synchronisation temporelle
+			// ---------------------------------------------------------
+			if (command_id == CMD_TIME_SYNC &&
+				bytesToRead >= 9) {
+
+				uint64_t pc_unix_time_ms = 0;
+
+				memcpy(
+					&pc_unix_time_ms,
+					&rx_buffer[1],
+					sizeof(pc_unix_time_ms)
+				);
+
+				set_system_time_ms(pc_unix_time_ms);
+
+				Serial.println(
+					"[Com] Horloge calée sur le temps UNIX PC."
+				);
+			}
+
+			// ---------------------------------------------------------
+			// Commande vitesse
+			// ---------------------------------------------------------
+			else if (command_id == CMD_VELOCITY && bytesToRead == 9) {
+
+				float linearVel = 0.0f;
+				float angularVel = 0.0f;
+
+				memcpy(&linearVel, &rx_buffer[1], sizeof(float));
+				memcpy(&angularVel, &rx_buffer[5], sizeof(float));
+
+				mutex_cmd_vel.lock();
+
+				cmd_vel_partagee.linearVel = linearVel;
+				cmd_vel_partagee.angularVel = angularVel;
+				cmd_vel_partagee.lastUpdate = millis();
+				cmd_vel_partagee.stopRequested = false;
+
+				mutex_cmd_vel.unlock();
+
+				Serial.print("[Com] CMD lin=");
+				Serial.print(linearVel);
+				Serial.print(" ang=");
+				Serial.println(angularVel);
+			}
+
+			// ---------------------------------------------------------
+			// STOP
+			// ---------------------------------------------------------
+			else if (command_id == CMD_STOP && bytesToRead == 1) {
+
+				mutex_cmd_vel.lock();
+
+				cmd_vel_partagee.linearVel = 0.0f;
+				cmd_vel_partagee.angularVel = 0.0f;
+				cmd_vel_partagee.lastUpdate = millis();
+				cmd_vel_partagee.stopRequested = true;
+
+				mutex_cmd_vel.unlock();
+
+				Serial.println("[Com] STOP");
+			}
+
+			// ---------------------------------------------------------
+			// RESET
+			// ---------------------------------------------------------
+			else if (command_id == CMD_RESET &&
+					bytesToRead == 1) {
+
+				Serial.println("[Com] RESET");
+
+				// Traitement du RESET ici
+			}
+
+			// ---------------------------------------------------------
+			// ID inconnu
+			// ---------------------------------------------------------
+			else {
+
+				Serial.print("[Com] Commande inconnue : 0x");
+				Serial.println(command_id, HEX);
+			}
+		}
 
 
 
@@ -305,8 +377,13 @@ void task_com_ros2()
 				udp_lidar.beginPacket(server_ip, PORT_LIDAR);
 				udp_lidar.write((uint8_t*)&tramesLocales[i], 50); // 50 = nombre d'octets envoyés
 				udp_lidar.endPacket();
+
+				//Serial.println(nbTrames);
 			}
 		}
+		// else{
+		// 	Serial.println("No frames to send");
+		// }
 
 		prochain_reveil += PERIODE_COM;
         rtos::ThisThread::sleep_until(prochain_reveil);

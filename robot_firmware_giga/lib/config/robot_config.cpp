@@ -20,7 +20,14 @@ std::deque<lidar::Data>   lidar_frames_queue_partagee;
 
 
 rtos::Mutex mutex_cmd_vel;
-CmdVel cmd_vel_partagee;
+CmdVel cmd_vel_partagee = {
+    0.0f,
+    0.0f,
+    0,
+    true
+};
+
+
 
 
 rtos::Mutex mutex_cmd;
@@ -28,3 +35,13 @@ CmdVel      cmd_partagee;
 
 rtos::Mutex mutex_odom_partagee;
 OdomData    odom_partagee;
+
+
+
+MotorCommand motor_cmd_partagee = {
+    0.0f,
+    0.0f,
+    true
+};
+
+rtos::Mutex mutex_motor_cmd;

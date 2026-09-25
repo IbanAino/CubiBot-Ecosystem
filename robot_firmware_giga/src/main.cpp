@@ -13,7 +13,7 @@ rtos::Thread thread_moteurs( osPriorityHigh,        4096, nullptr, "moteurs");
 rtos::Thread thread_audio(   osPriorityAboveNormal, 4096, nullptr, "audio");
 rtos::Thread thread_percept( osPriorityNormal,      4096, nullptr, "perception");
 rtos::Thread thread_com_ros2(osPriorityBelowNormal, 8192, nullptr, "ros2");
-//rtos::Thread thread_control( osPriorityHigh,	   16384, nullptr, "control");
+rtos::Thread thread_control( osPriorityHigh,	   16384, nullptr, "control");
 
 
 void setup() {
@@ -36,7 +36,7 @@ void setup() {
    thread_audio.start(mbed::callback(task_audio));
    thread_percept.start(mbed::callback(task_perception));
    thread_com_ros2.start(mbed::callback(task_com_ros2));
-   //thread_control.start(mbed::callback(task_control));
+   thread_control.start(mbed::callback(task_control));
 
   Serial.println("[Système] Initialisation des modules complète.");
 }

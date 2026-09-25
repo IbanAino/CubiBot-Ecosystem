@@ -37,7 +37,7 @@ VelocityMotorController leftWheel2(leftEncoder2, leftMotor2, leftPID2, leftStall
 VelocityMotorController rightWheel1(rightEncoder1, rightMotor1, rightPID1, rightStallWatchdog1);
 VelocityMotorController rightWheel2(rightEncoder2, rightMotor2, rightPID2, rightStallWatchdog2);
 
-DifferentialOdometry odometry(WHEEL_RADIUS_METERS, WHEEL_BASE_METERS);
+DifferentialOdometry odometry(WHEEL_RADIUS, WHEEL_BASE);
 DifferentialOdometryController odomController(leftEncoder1, rightEncoder1, odometry);
 
 void isrLeft1A() { leftEncoder1.handleChannelA(); }
@@ -50,8 +50,9 @@ void isrRight2A() { rightEncoder2.handleChannelA(); }
 void isrRight2B() { rightEncoder2.handleChannelB(); }
 
 
-
-
+MotorCommand motor_cmd_local;
+// float linearVel;   // m/s
+// float angularVel;  // rad/s
 // float TARGET_VELOCITY = 0.0f; // rev/s
 
 
@@ -96,6 +97,37 @@ void task_moteurs() {
 
 
 	while (true) {
+		// --- 1. Réception des commandes
+		mutex_motor_cmd.lock();
+		motor_cmd_local = motor_cmd_partagee;
+		mutex_motor_cmd.unlock();
+
+		if (motor_cmd_local.stop) {
+
+			leftWheel1.stop();
+			leftWheel2.stop();
+			rightWheel1.stop();
+			rightWheel2.stop();
+
+		} else {
+
+			leftWheel1.setTargetVelocity(
+				motor_cmd_local.leftVelocity);
+
+			leftWheel2.setTargetVelocity(
+				motor_cmd_local.leftVelocity);
+
+			rightWheel1.setTargetVelocity(
+				motor_cmd_local.rightVelocity);
+
+			rightWheel2.setTargetVelocity(
+				motor_cmd_local.rightVelocity);
+		}
+
+
+
+
+		// --- 2. Mise à jour des moteurs
 		leftWheel1.update();
 		leftWheel2.update();
 		rightWheel1.update();
@@ -113,11 +145,10 @@ void task_moteurs() {
                               + rightWheel2.getMeasuredVelocity()) / 2.0f;
 
         // // Vitesses robot en m/s et rad/s (cinématique directe)
-        const float circumference = 2.0f * static_cast<float>(M_PI) * WHEEL_RADIUS_METERS;
+        const float circumference = 2.0f * static_cast<float>(M_PI) * WHEEL_RADIUS;
         const float linearVel     = (leftVel + rightVel) / 2.0f * circumference;
-        const float angularVel    = (rightVel - leftVel)  * circumference / WHEEL_BASE_METERS;
+        const float angularVel    = (rightVel - leftVel)  * circumference / WHEEL_BASE;
 		
-
         // // --- 5. Publication de la pose dans la variable partagée ---
 		local_odom.timestamp = get_system_time_ms();
 		local_odom.x = odomController.getX();
@@ -129,7 +160,6 @@ void task_moteurs() {
 		mutex_odom_partagee.lock();
 		odom_partagee = local_odom;
 		mutex_odom_partagee.unlock();
-
 
 		// Serial.print("[task_moteurs] Odom : ");
 		// Serial.print("timeStamp=");
@@ -146,40 +176,7 @@ void task_moteurs() {
 		// Serial.print(local_odom.angularVel, 3);
 		// Serial.println(" rad/s");
 
-
-		// local_odom.timestamp = get_system_time_ms();
-		// local_odom.x = odomController.getX();
-		// local_odom.y = odomController.getY();
-		// local_odom.theta = odomController.getTheta();
-
-		// mutex_odom_partagee.lock();
-		// odom_partagee = local_odom;
-		// mutex_odom_partagee.unlock();
-
-		/*
-		// Calcul de l'asservissement
-		leftWheel.update();
-
-		compteur_log++;
-		if (compteur_log >= 25) { // 25 * 20ms = 500ms
-			compteur_log = 0;
-
-			// Récupération des valeurs internes de vos briques logicielles
-			float vit_mesuree = leftEncoder.getSpeed(); // ou la fonction équivalente de votre classe
-			int ticks = leftEncoder.getTicks();            // pour vérifier si l'encodeur bouge
-			uint8_t pwm_envoi = leftMotor.getSpeed();
-
-			Serial.print("[MOTEUR GAUCHE] Ticks: ");
-			Serial.print(ticks);
-			Serial.print(" | Vit. Mesurée: ");
-			Serial.print(vit_mesuree);
-			Serial.print(" | PWM envoyé: ");
-			Serial.println(pwm_envoi);
-		}
-		*/
 		prochain_reveil += PERIODE_MOTEURS;
-		
 		rtos::ThisThread::sleep_until(prochain_reveil);
-	
 	}
 }
