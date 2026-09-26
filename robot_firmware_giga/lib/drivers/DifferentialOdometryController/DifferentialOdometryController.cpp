@@ -5,11 +5,15 @@
 // Constructor
 // -----------------------------------------------------------------------
 
-DifferentialOdometryController::DifferentialOdometryController(RotaryIncrementalEncoder& leftEncoder,
-                                                                   RotaryIncrementalEncoder& rightEncoder,
-                                                                   DifferentialOdometry& odometry)
-    : _leftEncoder(leftEncoder)
-    , _rightEncoder(rightEncoder)
+DifferentialOdometryController::DifferentialOdometryController(	RotaryIncrementalEncoder& leftEncoder1,
+																RotaryIncrementalEncoder& leftEncoder2,
+                                                                RotaryIncrementalEncoder& rightEncoder1,
+																RotaryIncrementalEncoder& rightEncoder2,
+                                                                DifferentialOdometry& odometry)
+    : _leftEncoder1(leftEncoder1)
+    , _rightEncoder1(rightEncoder1)
+    , _leftEncoder2(leftEncoder2)
+    , _rightEncoder2(rightEncoder2)
     , _odometry(odometry)
     , _previousLeftTicks(0)
     , _previousRightTicks(0)
@@ -23,8 +27,8 @@ DifferentialOdometryController::DifferentialOdometryController(RotaryIncremental
 
 void DifferentialOdometryController::update()
 {
-    const int32_t currentLeftTicks  = _leftEncoder.getTicks();
-    const int32_t currentRightTicks = _rightEncoder.getTicks();
+    const int32_t currentLeftTicks  = (_leftEncoder1.getTicks() + _leftEncoder2.getTicks()) / 2.0;
+    const int32_t currentRightTicks = (_rightEncoder1.getTicks() + _rightEncoder2.getTicks()) / 2.0;
 
     // First call: just establish the baseline. Integrating a delta
     // against an undefined previous reading would produce a spurious
@@ -42,8 +46,8 @@ void DifferentialOdometryController::update()
     _previousLeftTicks  = currentLeftTicks;
     _previousRightTicks = currentRightTicks;
 
-    const float deltaLeftMeters  = _ticksToMeters(deltaLeftTicks,  _leftEncoder.getTicksPerRev());
-    const float deltaRightMeters = _ticksToMeters(deltaRightTicks, _rightEncoder.getTicksPerRev());
+    const float deltaLeftMeters  = _ticksToMeters(deltaLeftTicks,  _leftEncoder1.getTicksPerRev());
+    const float deltaRightMeters = _ticksToMeters(deltaRightTicks, _rightEncoder1.getTicksPerRev());
 
     _odometry.update(deltaLeftMeters, deltaRightMeters);
 }

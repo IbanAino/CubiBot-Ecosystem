@@ -40,8 +40,10 @@ extern rtos::Mutex    mutex_lidar;
 extern lidar::Data    lidar_data_partagee;
 
 
-static constexpr float WHEEL_RADIUS = 0.0425f; // 4.3 cm diameter
-static constexpr float WHEEL_BASE   = 0.088f;
+static constexpr float WHEEL_RADIUS = 0.0215f; // 4.3 cm diameter
+//static constexpr float WHEEL_BASE   = 0.088f;
+//static constexpr float WHEEL_BASE   = 0.106f;
+static constexpr float WHEEL_BASE   = 0.140f;
 
 static constexpr size_t MAX_FRAMES_PER_BATCH = 20; // même taille que lidarTypes.h/MAX_FRAME_QUEUE_SIZE
 
@@ -67,8 +69,8 @@ static constexpr size_t         MAX_LIDAR_FRAMES_QUEUE = 20;
 
 
 // --- CONSTANTES DU ROBOT (TEST) ---
-const uint16_t TICKS_PER_REV = 2770;
-
+//const uint16_t TICKS_PER_REV = 2770;
+const uint16_t TICKS_PER_REV = 4000;
 
 
 static constexpr size_t MAX_FRAME_QUEUE_SIZE = 10;

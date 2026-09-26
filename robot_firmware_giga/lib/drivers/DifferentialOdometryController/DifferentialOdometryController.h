@@ -43,9 +43,11 @@ public:
      * @param odometry      Reference to an already-constructed
      *                      DifferentialOdometry instance.
      */
-    DifferentialOdometryController(RotaryIncrementalEncoder& leftEncoder,
-                                     RotaryIncrementalEncoder& rightEncoder,
-                                     DifferentialOdometry& odometry);
+    DifferentialOdometryController(	RotaryIncrementalEncoder& leftEncoder1,
+									RotaryIncrementalEncoder& leftEncoder2,
+                                    RotaryIncrementalEncoder& rightEncoder1,
+									RotaryIncrementalEncoder& rightEncoder2,
+                                    DifferentialOdometry& odometry);
 
     /**
      * @brief Reads both encoders and integrates one odometry step.
@@ -78,8 +80,10 @@ public:
     float getTheta() const;
 
 private:
-    RotaryIncrementalEncoder& _leftEncoder;
-    RotaryIncrementalEncoder& _rightEncoder;
+    RotaryIncrementalEncoder& _leftEncoder1;
+    RotaryIncrementalEncoder& _rightEncoder1;
+    RotaryIncrementalEncoder& _leftEncoder2;
+    RotaryIncrementalEncoder& _rightEncoder2;
     DifferentialOdometry&     _odometry;
 
     int32_t _previousLeftTicks;

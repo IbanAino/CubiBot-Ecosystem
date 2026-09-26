@@ -13,15 +13,25 @@
 #include "time_system.h"
 
 // --- 1. Instanciation des composants pour le moteur gauche ---
-RotaryIncrementalEncoder leftEncoder1(L1_C1, L1_C2, TICKS_PER_REV);
-RotaryIncrementalEncoder leftEncoder2(L2_C1, L2_C2, TICKS_PER_REV);
-RotaryIncrementalEncoder rightEncoder1(R1_C2, R1_C1, TICKS_PER_REV);
-RotaryIncrementalEncoder rightEncoder2(R2_C2, R2_C1, TICKS_PER_REV);
+// RotaryIncrementalEncoder leftEncoder1(L1_C1, L1_C2, TICKS_PER_REV);
+// RotaryIncrementalEncoder leftEncoder2(L2_C1, L2_C2, TICKS_PER_REV);
+// RotaryIncrementalEncoder rightEncoder1(R1_C2, R1_C1, TICKS_PER_REV);
+// RotaryIncrementalEncoder rightEncoder2(R2_C2, R2_C1, TICKS_PER_REV);
 
-DCMotor leftMotor1(L_EN1, L_IN2, L_IN1);
-DCMotor leftMotor2(L_EN2, L_IN3, L_IN4);
-DCMotor rightMotor1(R_EN1, R_IN1, R_IN2);
-DCMotor rightMotor2(R_EN2, R_IN4, R_IN3);
+// DCMotor leftMotor1(L_EN1, L_IN2, L_IN1);
+// DCMotor leftMotor2(L_EN2, L_IN3, L_IN4);
+// DCMotor rightMotor1(R_EN1, R_IN1, R_IN2);
+// DCMotor rightMotor2(R_EN2, R_IN4, R_IN3);
+
+RotaryIncrementalEncoder rightEncoder1(L1_C1, L1_C2, TICKS_PER_REV);
+RotaryIncrementalEncoder rightEncoder2(L2_C1, L2_C2, TICKS_PER_REV);
+RotaryIncrementalEncoder leftEncoder1(R1_C2, R1_C1, TICKS_PER_REV);
+RotaryIncrementalEncoder leftEncoder2(R2_C2, R2_C1, TICKS_PER_REV);
+
+DCMotor rightMotor1(L_EN1, L_IN2, L_IN1);
+DCMotor rightMotor2(L_EN2, L_IN3, L_IN4);
+DCMotor leftMotor1(R_EN1, R_IN1, R_IN2);
+DCMotor leftMotor2(R_EN2, R_IN4, R_IN3);
 
 PIDController leftPID1(200.0f, 100.0f, 0.0f, 100.0f, 0.2f);
 PIDController leftPID2(200.0f, 100.0f, 0.0f, 100.0f, 0.2f);
@@ -39,7 +49,11 @@ VelocityMotorController rightWheel1(rightEncoder1, rightMotor1, rightPID1, right
 VelocityMotorController rightWheel2(rightEncoder2, rightMotor2, rightPID2, rightStallWatchdog2);
 
 DifferentialOdometry odometry(WHEEL_RADIUS, WHEEL_BASE);
-DifferentialOdometryController odomController(leftEncoder1, rightEncoder1, odometry);
+DifferentialOdometryController odomController(	leftEncoder1,
+												leftEncoder2,
+												rightEncoder1,
+												rightEncoder2,
+												odometry);
 
 void isrLeft1A() { leftEncoder1.handleChannelA(); }
 void isrLeft1B() { leftEncoder1.handleChannelB(); }

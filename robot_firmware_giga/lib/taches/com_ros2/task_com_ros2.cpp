@@ -324,7 +324,7 @@ void task_com_ros2()
 		// Serial.print(" m | y=");
 		// Serial.print(local_odom.y, 3);
 		// Serial.print(" m | theta=");
-		// Serial.print(local_odom.theta, 3);
+		// Serial.println(local_odom.theta, 3);
 		// Serial.print(" rad | linearVel=");
 		// Serial.print(local_odom.linearVel, 3);
 		// Serial.print(" m/s | angularVel=");
@@ -367,19 +367,19 @@ void task_com_ros2()
 		if (nbTrames != 0){
 
 			for (uint8_t i = 0; i < nbTrames; i++) {
-				// Serial.print(tramesLocales[i].timestamp);
-				// Serial.print(" - ");
-				// Serial.print(tramesLocales[i].speed);
-				// Serial.print(" - ");
-				// Serial.print(tramesLocales[i].startAngle);
-				// Serial.print(" - ");
-				// Serial.print(tramesLocales[i].endAngle);
-				// Serial.print(" --> ");
-				// for (uint8_t y = 0; y < nbTrames; y++) {
-				// 	Serial.print(tramesLocales[i].points[y].distance);
-				// 	Serial.print("|");
-				// }
-				// Serial.println("");
+				Serial.print(tramesLocales[i].timestamp);
+				Serial.print(" - ");
+				Serial.print(tramesLocales[i].speed);
+				Serial.print(" - ");
+				Serial.print(tramesLocales[i].startAngle);
+				Serial.print(" - ");
+				Serial.print(tramesLocales[i].endAngle);
+				Serial.print(" --> ");
+				for (uint8_t y = 0; y < nbTrames; y++) {
+					Serial.print(tramesLocales[i].points[y].distance);
+					Serial.print("|");
+				}
+				Serial.println("");
 
 
 
