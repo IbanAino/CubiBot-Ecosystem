@@ -26,6 +26,7 @@ setup(
     entry_points={
         'console_scripts': [
 		    'teleop_gui = my_robot_commands.teleop_gui:main',
+		    'teleop_gui_v2 = my_robot_commands.node_teleop_gui_v2_MVC:main',
         ],
     },
 )

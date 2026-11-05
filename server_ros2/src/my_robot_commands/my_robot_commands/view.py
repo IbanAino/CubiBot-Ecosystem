@@ -28,8 +28,8 @@ class TeleopView(tk.Tk):
         boutons = [
             ('Avancer (CMD,0.2,0.0)', 'CMD,0.2,0.0'),
             ('Reculer (CMD,-0.2,0.0)', 'CMD,-0.2,0.0'),
-            ('Tourner G (CMD,0.0,2.0)', 'CMD,0.0,2.0'),
-            ('Tourner D (CMD,0.0,-2.0)', 'CMD,0.0,-2.0'),
+            ('Tourner G (CMD,0.0,1.0)', 'CMD,0.0,1.0'),
+            ('Tourner D (CMD,0.0,-1.0)', 'CMD,0.0,-1.0'),
             ('Stop', 'STOP'),
             ('RESET', 'RESET'),
         ]

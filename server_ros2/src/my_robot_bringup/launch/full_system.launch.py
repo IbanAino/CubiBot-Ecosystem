@@ -102,6 +102,13 @@ def generate_launch_description():
         executable='teleop_gui',
         output='screen',
     )
+    
+    # --- Nœud Commandes V2 ---
+    teleop_gui_v2 = Node(
+        package='my_robot_commands',
+        executable='teleop_gui_v2',
+        output='screen',
+    )
 
     # --- Nœud RViz ---
     rviz = Node(
@@ -131,7 +138,8 @@ def generate_launch_description():
         driver_wifi_odom,
         driver_wifi_lidar,
         #driver_fake_lidar,
-        teleop_gui,
+        #teleop_gui,
+        teleop_gui_v2,
         driver_wifi_cmd,
         rviz,
         time_syncer,

@@ -4,8 +4,8 @@ import struct
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
-
-
+from geometry_msgs.msg import Twist
+from geometry_msgs.msg import TwistStamped
 
 
 
@@ -50,6 +50,10 @@ class WifiBridgeCmd(Node):
             '<B',
             self.CMD_STOP
         )
+        
+        #-----------------------
+        # Abonnement aux topics
+        #-----------------------
 
         self.create_subscription(
             String,
@@ -57,6 +61,23 @@ class WifiBridgeCmd(Node):
             self._cmd_raw_callback,
             10
         )
+        
+        self.cmd_vel_subscription = self.create_subscription(
+            Twist,
+            'cmd_vel',
+            self._cmd_vel_callback,
+            10
+        )
+        
+        self.cmd_vel_subscription = self.create_subscription(
+            TwistStamped,
+            'cmd_vel_smoothed',
+            self._cmd_vel_smoothed_callback,
+            10
+        )
+        
+        #-----------------------
+        
 
         self.command_timer = self.create_timer(
             1.0 / self.COMMAND_FREQUENCY,
@@ -174,8 +195,45 @@ class WifiBridgeCmd(Node):
             self.get_logger().warning(
                 f'Commande /cmd_raw inconnue : "{texte}"'
             )
+            
+            
+    """
+    Fonction de callback
+    appellée lors de la publication d'un message de commande sur le topic cmd_vel
+    """ 
+    def _cmd_vel_callback(self, msg):
+        linear = msg.linear.x
+        angular = msg.angular.z
 
+        self.struct_pack = struct.pack(
+            '<Bff',
+            self.CMD_VELOCITY,
+            linear,
+            angular
+        )
 
+        #self.get_logger().debug(
+        #    f'Nouvelle commande /cmd_vel : '
+        #    f'lin={linear:.3f}, ang={angular:.3f}'
+        #)
+        
+        
+    """
+    Fonction de callback
+    appellée lors de la publication d'un message de commande sur le topic cmd_vel_smoothed
+    """ 
+    def _cmd_vel_smoothed_callback(self, msg):
+        linear = msg.twist.linear.x
+        angular = msg.twist.angular.z
+
+        self.struct_pack = struct.pack(
+            '<Bff',
+            self.CMD_VELOCITY,
+            linear,
+            angular
+        )
+        
+        
     """
     Boucle exécutée à fréquence régulière
     fréquence : 20Hz
