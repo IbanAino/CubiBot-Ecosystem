@@ -1,0 +1,343 @@
+# ============================================================
+# Nav2 - Robot 12 x 12 cm
+# ROS 2 Lyrical
+#
+# Architecture TF :
+# map -> odom -> base_footprint -> base_link -> laser
+#
+# /map  : slam_toolbox
+# /scan : wifi_bridge_lidar
+# /odom : wifi_bridge_odom
+# /cmd_vel : Nav2 -> wifi_bridge_cmd
+# ============================================================
+
+
+# ============================================================
+# CONTROLLER
+# ============================================================
+
+controller_server:
+  ros__parameters:
+    controller_frequency: 20.0
+
+    min_x_velocity_threshold: 0.001
+    min_y_velocity_threshold: 0.001
+    min_theta_velocity_threshold: 0.001
+
+    progress_checker_plugins: ["progress_checker"]
+    goal_checker_plugins: ["goal_checker"]
+    controller_plugins: ["FollowPath"]
+
+    progress_checker:
+      plugin: "nav2_controller::SimpleProgressChecker"
+      required_movement_radius: 0.03
+      movement_time_allowance: 10.0
+
+    goal_checker:
+      plugin: "nav2_controller::SimpleGoalChecker"
+      xy_goal_tolerance: 0.03
+      yaw_goal_tolerance: 0.10
+      stateful: true
+
+    FollowPath:
+      plugin: "nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController"
+
+      # Robot très petit : vitesse volontairement faible
+      desired_linear_vel: 0.10
+
+      lookahead_dist: 0.15
+      min_lookahead_dist: 0.10
+      max_lookahead_dist: 0.25
+
+      lookahead_time: 1.5
+      use_velocity_scaled_lookahead_dist: false
+
+      rotate_to_heading_angular_vel: 0.2
+      use_rotate_to_heading: false
+      rotate_to_heading_min_angle: 0.35
+
+      min_approach_linear_velocity: 0.03
+      approach_velocity_scaling_dist: 0.15
+
+      use_collision_detection: true
+      max_allowed_time_to_collision_up_to_carrot: 1.0
+
+      use_regulated_linear_velocity_scaling: true
+
+      # Le robot est petit : ralentissement à proximité des obstacles
+      use_cost_regulated_linear_velocity_scaling: true
+      cost_scaling_dist: 0.08
+      cost_scaling_gain: 1.0
+
+      regulated_linear_scaling_min_radius: 0.30
+      regulated_linear_scaling_min_speed: 0.03
+
+      allow_reversing: false
+
+      transform_tolerance: 0.2
+
+      max_angular_vel: 0.3
+      max_angular_accel: 0.5
+
+      min_distance_to_obstacle: 0.02
+
+
+# ============================================================
+# PLANNER
+# ============================================================
+
+planner_server:
+  ros__parameters:
+    expected_planner_frequency: 5.0
+
+    planner_plugins: ["GridBased"]
+
+    GridBased:
+      plugin: "nav2_navfn_planner::NavfnPlanner"
+      tolerance: 0.05
+      use_astar: false
+      allow_unknown: true
+
+
+# ============================================================
+# BEHAVIOR SERVER
+# ============================================================
+
+behavior_server:
+  ros__parameters:
+    local_frame: odom
+    global_frame: map
+    robot_base_frame: base_footprint
+
+    cycle_frequency: 10.0
+
+    behavior_plugins:
+      - spin
+      - backup
+      - drive_on_heading
+      - wait
+
+    spin:
+      plugin: "nav2_behaviors::Spin"
+
+    backup:
+      plugin: "nav2_behaviors::BackUp"
+
+    drive_on_heading:
+      plugin: "nav2_behaviors::DriveOnHeading"
+
+    wait:
+      plugin: "nav2_behaviors::Wait"
+
+    simulate_ahead_time: 2.0
+    transform_tolerance: 0.2
+
+
+# ============================================================
+# BT NAVIGATOR
+# ============================================================
+
+bt_navigator:
+  ros__parameters:
+    global_frame: map
+    robot_base_frame: base_footprint
+    odom_topic: /odom
+
+    bt_loop_duration: 10
+    default_server_timeout: 20
+
+    enable_groot_monitoring: false
+
+
+# ============================================================
+# GLOBAL COSTMAP
+# ============================================================
+
+global_costmap:
+  global_costmap:
+    ros__parameters:
+
+      update_frequency: 2.0
+      publish_frequency: 2.0
+
+      global_frame: map
+      robot_base_frame: base_footprint
+
+      resolution: 0.02
+
+      # Robot 12 x 12 cm
+      footprint: "[[0.06, 0.06],
+                   [0.06, -0.06],
+                   [-0.06, -0.06],
+                   [-0.06, 0.06]]"
+
+      footprint_padding: 0.005
+
+      track_unknown_space: true
+
+      rolling_window: false
+
+      plugins:
+        - static_layer
+        - obstacle_layer
+        - inflation_layer
+
+      static_layer:
+        plugin: "nav2_costmap_2d::StaticLayer"
+        map_subscribe_transient_local: true
+
+      obstacle_layer:
+        plugin: "nav2_costmap_2d::ObstacleLayer"
+
+        observation_sources: scan
+
+        scan:
+          topic: /scan
+          data_type: "LaserScan"
+          marking: true
+          clearing: true
+          obstacle_max_range: 8.0
+          raytrace_max_range: 8.0
+          inf_is_valid: true
+
+      inflation_layer:
+        plugin: "nav2_costmap_2d::InflationLayer"
+        inflation_radius: 0.08
+        cost_scaling_factor: 5.0
+
+
+# ============================================================
+# LOCAL COSTMAP
+# ============================================================
+
+local_costmap:
+  local_costmap:
+    ros__parameters:
+
+      update_frequency: 10.0
+      publish_frequency: 5.0
+
+      global_frame: odom
+      robot_base_frame: base_footprint
+
+      rolling_window: true
+
+      width: 2
+      height: 2
+
+      resolution: 0.02
+
+      # Robot 12 x 12 cm
+      footprint: "[[0.06, 0.06],
+                   [0.06, -0.06],
+                   [-0.06, -0.06],
+                   [-0.06, 0.06]]"
+
+      footprint_padding: 0.005
+
+      plugins:
+        - obstacle_layer
+        - inflation_layer
+
+      obstacle_layer:
+        plugin: "nav2_costmap_2d::ObstacleLayer"
+
+        observation_sources: scan
+
+        scan:
+          topic: /scan
+          data_type: "LaserScan"
+          marking: true
+          clearing: true
+          obstacle_max_range: 8.0
+          raytrace_max_range: 8.0
+          inf_is_valid: true
+
+      inflation_layer:
+        plugin: "nav2_costmap_2d::InflationLayer"
+        inflation_radius: 0.08
+        cost_scaling_factor: 5.0
+
+
+# ============================================================
+# SMOOTHER
+# ============================================================
+
+smoother_server:
+  ros__parameters:
+    smoother_plugins: ["simple_smoother"]
+
+    simple_smoother:
+      plugin: "nav2_smoother::SimpleSmoother"
+      tolerance: 1.0e-10
+      max_its: 1000
+      do_refinement: true
+
+
+# ============================================================
+# VELOCITY SMOOTHER
+# ============================================================
+
+velocity_smoother:
+  ros__parameters:
+    smoothing_frequency: 20.0
+
+    scale_velocities: false
+
+    feedback: "OPEN_LOOP"
+
+    max_velocity: [0.10, 0.0, 1.0]
+    min_velocity: [-0.10, 0.0, -1.0]
+
+    max_accel: [0.20, 0.0, 1.0]
+    max_decel: [-0.20, 0.0, -1.0]
+
+    velocity_timeout: 1.0
+
+    odom_topic: /odom
+    odom_duration: 0.1
+
+
+# ============================================================
+# LIFECYCLE MANAGER
+# ============================================================
+
+lifecycle_manager_navigation:
+  ros__parameters:
+    autostart: true
+
+    node_names:
+      - controller_server
+      - smoother_server
+      - planner_server
+      - behavior_server
+      - bt_navigator
+
+    bond_timeout: 4.0
+
+
+# ============================================================
+# COLLISION MONITOR
+# ============================================================
+
+collision_monitor:
+  ros__parameters:
+    enabled: false
+
+    base_frame_id: "base_footprint"
+    odom_frame_id: "odom"
+
+    polygons: ["StopPolygon"]
+
+    StopPolygon:
+      type: "polygon"
+      points: "[[0.10, 0.10], [0.10, -0.10], [-0.10, -0.10], [-0.10, 0.10]]"
+      action_type: "stop"
+      min_points: 4
+
+    observation_sources: ["scan"]
+
+    scan:
+      type: "scan"
+      topic: "/scan"
+      enabled: false
